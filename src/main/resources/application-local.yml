@@ -1,0 +1,10 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/sgi_auto
+    username: postgres
+    password: tu_password_local
+
+logging:
+  level:
+    com.sgi.auto: DEBUG
+    org.hibernate.SQL: DEBUG
