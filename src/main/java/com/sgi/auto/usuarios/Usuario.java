@@ -6,10 +6,13 @@ import lombok.*;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
+
 
 @Entity
 @Table(name = "usuarios")
@@ -33,7 +36,8 @@ public class Usuario extends EntidadBase implements UserDetails {
     private String contrasenaHash;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "rol", nullable = false)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
+    @Column(name= "rol", nullable = false)
     private RolUsuario rol;
 
     // ── Permisos granulares para CAJERA ──────────────────────────
