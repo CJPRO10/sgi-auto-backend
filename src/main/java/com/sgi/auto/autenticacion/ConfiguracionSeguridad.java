@@ -46,6 +46,7 @@ public class ConfiguracionSeguridad {
                                 "/api/autenticacion/ingresar",
                                 "/api/docs/**",
                                 "/api/swagger-ui/**",
+                                "/swagger-ui/**",
                                 "/api/salud"
                         ).permitAll()
                         .anyRequest().authenticated()
