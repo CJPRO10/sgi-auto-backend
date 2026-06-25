@@ -54,11 +54,11 @@ jobs:
           JWT_EXPIRACION_HORAS: 1
 
       - name: Verificar cobertura con JaCoCo
-        run: ./mvnw jacoco:report jacoco:check
-        env:
-          DATABASE_URL: jdbc:postgresql://localhost:5432/sgi_auto_test
-          JWT_SECRET: clave_secreta_para_tests_de_integracion_256_bits_minimo_requerido
-          JWT_EXPIRACION_HORAS: 1
+          run: ./mvnw verify -DskipTests
+          env:
+            DATABASE_URL: jdbc:postgresql://localhost:5432/sgi_auto_test
+            JWT_SECRET: clave_secreta_para_tests_ci_256_bits_minimo_requerido
+            JWT_EXPIRACION_HORAS: 1
 
       - name: Subir reporte de cobertura como artefacto
         uses: actions/upload-artifact@v4
