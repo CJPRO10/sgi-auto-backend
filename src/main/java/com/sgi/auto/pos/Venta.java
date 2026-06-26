@@ -59,11 +59,11 @@ public class Venta extends EntidadBase {
     @Builder.Default
     private BigDecimal totalCop = BigDecimal.ZERO;
 
-    @Column(name = "monto_pagado_cop", nullable = false, precision = 14, scale = 2)
+    @Column(name = "monto_efectivo_cop", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal montoPagadoCop = BigDecimal.ZERO;
 
-    @Column(name = "vuelto_cop", nullable = false, precision = 14, scale = 2)
+    @Column(name = "vuelto_entregado_cop", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal vueltoCop = BigDecimal.ZERO;
 

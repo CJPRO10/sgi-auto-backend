@@ -15,13 +15,13 @@ public class ServicioOT {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "orden_id", nullable = false)
+    @JoinColumn(name = "orden_trabajo_id", nullable = false)
     private OrdenDeTrabajo ordenDeTrabajo;
 
     @Column(name = "descripcion", nullable = false)
     private String descripcion;
 
-    @Column(name = "precio_unitario_cop", nullable = false, precision = 14, scale = 2)
+    @Column(name = "valor_unitario_cop", nullable = false, precision = 14, scale = 2)
     private BigDecimal precioUnitarioCop;
 
     @Column(name = "cantidad", nullable = false)
