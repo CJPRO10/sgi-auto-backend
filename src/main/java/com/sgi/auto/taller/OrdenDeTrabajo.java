@@ -14,16 +14,12 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Orden de Trabajo del taller automotriz.
- * RF-052 al RF-069
- */
 @Entity
 @Table(name = "ordenes_trabajo")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
 public class OrdenDeTrabajo extends EntidadBase {
 
-    // ── Datos del cliente (denormalizados RF-053) ─────────────
+    // ── Datos del cliente ─────────────
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "cliente_id")
     private Cliente cliente;
@@ -34,8 +30,8 @@ public class OrdenDeTrabajo extends EntidadBase {
     @Column(name = "celular_cliente", length = 20)
     private String celularCliente;
 
-    // ── Datos del vehículo (RF-054) ───────────────────────────
-    @Column(name = "placa", nullable = false, length = 10)
+    // ── Datos del vehículo ───────────────────────────
+    @Column(name = "placa_vehiculo", nullable = false, length = 10)
     private String placa;
 
     @Column(name = "marca_vehiculo", length = 60)
@@ -53,8 +49,8 @@ public class OrdenDeTrabajo extends EntidadBase {
     @Column(name = "kilometraje")
     private Integer kilometraje;
 
-    // ── Diagnóstico y observaciones (RF-063) ──────────────────
-    @Column(name = "descripcion_problema", nullable = false)
+    // ── Diagnóstico y observaciones ──────────────────
+    @Column(name = "observaciones", nullable = false)
     private String descripcionProblema;
 
     @Column(name = "observaciones_mecanico")
@@ -63,12 +59,12 @@ public class OrdenDeTrabajo extends EntidadBase {
     @Column(name = "observaciones_entrega")
     private String observacionesEntrega;
 
-    // ── Asignación (RF-058) ───────────────────────────────────
+    // ── Asignación ───────────────────────────────────
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mecanico_id")
     private Usuario mecanico;
 
-    // ── Estado (RF-067) ───────────────────────────────────────
+    // ── Estado ───────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "estado", nullable = false)
@@ -82,13 +78,13 @@ public class OrdenDeTrabajo extends EntidadBase {
     @Column(name = "fecha_entrega_real")
     private OffsetDateTime fechaEntregaReal;
 
-    // ── Pago (RF-066) ─────────────────────────────────────────
+    // ── Pago ─────────────────────────────────────────
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "metodo_pago")
     private MetodoPago metodoPago;
 
-    // ── Totales (RF-064) — algunos GENERATED en BD ────────────
+    // ── Totales ────────────
     @Column(name = "total_servicios_cop", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal totalServiciosCop = BigDecimal.ZERO;

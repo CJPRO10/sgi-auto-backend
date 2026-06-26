@@ -22,17 +22,17 @@ import java.util.List;
 public class SesionCaja extends EntidadBase {
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "cajera_id", nullable = false)
+    @JoinColumn(name = "abierta_por", nullable = false)
     private Usuario cajera;
 
-    @Column(name = "saldo_inicial_cop", nullable = false, precision = 14, scale = 2)
+    @Column(name = "monto_apertura_cop", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal saldoInicialCop = BigDecimal.ZERO;
 
-    @Column(name = "saldo_final_cop", precision = 14, scale = 2)
+    @Column(name = "efectivo_declarado_cop", precision = 14, scale = 2)
     private BigDecimal saldoFinalCop;
 
-    @Column(name = "total_ventas_cop", nullable = false, precision = 14, scale = 2)
+    @Column(name = "efectivo_teorico_cop", nullable = false, precision = 14, scale = 2)
     @Builder.Default
     private BigDecimal totalVentasCop = BigDecimal.ZERO;
 

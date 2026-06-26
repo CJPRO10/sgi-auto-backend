@@ -21,7 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -231,7 +233,10 @@ public class VentaServicio {
     //Ventas del día.
     @Transactional(readOnly = true)
     public Page<VentaRespuestaDTO> ventasDeHoy(Pageable pageable) {
-        return ventaRepositorio.ventasDeHoy(pageable).map(this::aDTO);
+        OffsetDateTime inicioDia = LocalDate.now()
+                .atStartOfDay()
+                .atOffset(ZoneOffset.of("-05:00"));
+        return ventaRepositorio.ventasDeHoy(inicioDia, pageable).map(this::aDTO);
     }
 
     // ── Mapper manual ──

@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 public interface VentaRepositorio extends JpaRepository<Venta, Long> {
@@ -19,10 +20,10 @@ public interface VentaRepositorio extends JpaRepository<Venta, Long> {
 
     // Ventas del día para reportes
     @Query("""
-            SELECT v FROM Venta v
-            WHERE v.estado = 'COMPLETADA'
-              AND DATE(v.creadoEn) = CURRENT_DATE
-            ORDER BY v.creadoEn DESC
-            """)
-    Page<Venta> ventasDeHoy(Pageable pageable);
+        SELECT v FROM Venta v
+        WHERE v.estado = 'COMPLETADA'
+          AND v.creadoEn >= :inicioDia
+        ORDER BY v.creadoEn DESC
+        """)
+    Page<Venta> ventasDeHoy(@Param("inicioDia") OffsetDateTime inicioDia, Pageable pageable);
 }
