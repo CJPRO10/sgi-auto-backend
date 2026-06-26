@@ -202,6 +202,17 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <includes>
+                        <include>**/*Tests.java</include>
+                        <include>**/*Test.java</include>
+                        <include>**/*Prueba.java</include>
+                    </includes>
+                </configuration>
+            </plugin>
 
             <!-- Maven Compiler: Lombok + MapStruct juntos -->
             <plugin>
