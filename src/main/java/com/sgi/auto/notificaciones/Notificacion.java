@@ -19,7 +19,7 @@ public class Notificacion {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "tipo", nullable = false)
+    @Column(name = "tipo_notificacion", nullable = false)
     private TipoNotificacion tipo;
 
     @Column(name = "titulo", nullable = false, length = 200)
@@ -30,7 +30,7 @@ public class Notificacion {
 
     // null = para todos los roles, con valor = solo para ese usuario
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "destinatario_id")
+    @JoinColumn(name = "usuario_id")
     private Usuario destinatario;
 
     @Column(name = "leida", nullable = false)

@@ -30,7 +30,7 @@ public class MovimientoCaja {
 
     @Enumerated(EnumType.STRING)
     @JdbcTypeCode(SqlTypes.NAMED_ENUM)
-    @Column(name = "tipo", nullable = false)
+    @Column(name = "tipo_movimiento", nullable = false)
     private TipoMovimientoCaja tipo;
 
     @Column(name = "monto_cop", nullable = false, precision = 14, scale = 2)
