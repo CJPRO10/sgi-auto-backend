@@ -97,9 +97,8 @@ public class OrdenDeTrabajo extends EntidadBase {
     @Builder.Default
     private BigDecimal descuentoCop = BigDecimal.ZERO;
 
-    @Column(name = "gran_total_cop", nullable = false, precision = 14, scale = 2)
-    @Builder.Default
-    private BigDecimal granTotalCop = BigDecimal.ZERO;
+    @Column(name = "gran_total_cop", nullable = false, insertable = false, updatable = false, precision = 14, scale = 2)
+    private BigDecimal granTotalCop;
 
     // ── Relaciones ────────────────────────────────────────────
     @ManyToOne(fetch = FetchType.LAZY)
@@ -127,9 +126,6 @@ public class OrdenDeTrabajo extends EntidadBase {
         this.totalRepuestosCop = repuestos.stream()
                 .map(RepuestoOT::getSubtotalCop)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        this.granTotalCop = totalServiciosCop
-                .add(totalRepuestosCop)
-                .subtract(descuentoCop);
+        // granTotalCop lo calcula PostgreSQL automáticamente
     }
 }
