@@ -50,7 +50,11 @@ public class ProductoServicio {
         }
 
         Producto producto = productoMapper.aEntidad(solicitud);
-
+        // Mapear precio de venta a ambos campos
+        producto.setPrecioVentaDetal(solicitud.precioVentaCop());
+        producto.setPrecioVentaMayor(solicitud.precioVentaCop());
+// Mapear precio de compra sin IVA igual al con IVA por defecto
+        producto.setPrecioCompraSinIva(solicitud.precioCompraConIva());
         if (solicitud.categoriaId() != null) {
             Categoria categoria = categoriaRepositorio.findById(solicitud.categoriaId())
                     .orElseThrow(() -> new RecursoNoEncontradoExcepcion(

@@ -21,23 +21,15 @@ public record ProductoCrearDTO(
         @Size(max = 30)
         String unidadMedida,
 
-        @NotNull(message = "El precio de compra con IVA es obligatorio")
+        @NotNull(message = "El precio de compra es obligatorio")
         @DecimalMin(value = "0.0", inclusive = false)
         BigDecimal precioCompraConIva,
 
-        @NotNull(message = "El precio de compra sin IVA es obligatorio")
+        @NotNull(message = "El precio de venta es obligatorio")
         @DecimalMin(value = "0.0", inclusive = false)
-        BigDecimal precioCompraSinIva,
+        BigDecimal precioVentaCop,
 
-        @NotNull(message = "El precio de venta detal es obligatorio")
-        @DecimalMin(value = "0.0", inclusive = false)
-        BigDecimal precioVentaDetal,
-
-        @NotNull(message = "El precio de venta mayor es obligatorio")
-        @DecimalMin(value = "0.0", inclusive = false)
-        BigDecimal precioVentaMayor,
-
-        @Min(value = 0, message = "El stock mínimo no puede ser negativo")
+        @Min(value = 0)
         int stockMinimo,
 
         boolean mostrarEnListaPrecios
