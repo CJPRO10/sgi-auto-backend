@@ -34,6 +34,16 @@ public class ProductoControlador {
                         "Producto creado correctamente"));
     }
 
+    @PutMapping("/productos/{id}")
+    @PreAuthorize("hasRole('DUENO')")
+    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductoCrearDTO solicitud) {
+        return ResponseEntity.ok(ApiRespuesta.exitoso(
+                productoServicio.actualizarProducto(id, solicitud),
+                "Producto actualizado correctamente"));
+    }
+
     @GetMapping("/productos")
     public ResponseEntity<ApiRespuesta<Page<ProductoRespuestaDTO>>> listar(
             @PageableDefault(size = 20, sort = "nombre") Pageable pageable) {

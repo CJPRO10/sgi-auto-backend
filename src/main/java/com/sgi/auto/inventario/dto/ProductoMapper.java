@@ -19,6 +19,8 @@ public interface ProductoMapper {
             expression = "java(producto.getProveedor() != null ? producto.getProveedor().getNombre() : null)")
     @Mapping(target = "stockBajoMinimo",
             expression = "java(producto.getStockActual() <= producto.getStockMinimo())")
+    @Mapping(target = "categoriaId",
+            expression = "java(producto.getCategoria() != null ? producto.getCategoria().getId() : null)")
     ProductoRespuestaDTO aDTO(Producto producto);
 
     @Mapping(target = "id", ignore = true)

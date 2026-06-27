@@ -240,6 +240,32 @@ public class ProductoServicio {
         }
         return proveedorRepositorio.save(proveedor);
     }
+    @Transactional
+    public ProductoRespuestaDTO actualizarProducto(Long id, ProductoCrearDTO solicitud) {
+        Producto producto = buscarProductoOLanzar(id);
+
+        producto.setNombre(solicitud.nombre());
+        producto.setCodigo(solicitud.codigo());
+        producto.setDescripcion(solicitud.descripcion());
+        producto.setUnidadMedida(solicitud.unidadMedida());
+        producto.setPrecioCompraConIva(solicitud.precioCompraConIva());
+        producto.setPrecioCompraSinIva(solicitud.precioCompraConIva());
+        producto.setPrecioVentaDetal(solicitud.precioVentaCop());
+        producto.setPrecioVentaMayor(solicitud.precioVentaCop());
+        producto.setStockMinimo(solicitud.stockMinimo());
+        producto.setMostrarEnListaPrecios(solicitud.mostrarEnListaPrecios());
+
+        if (solicitud.categoriaId() != null) {
+            Categoria categoria = categoriaRepositorio.findById(solicitud.categoriaId())
+                    .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
+                            "No se encontró la categoría con id: " + solicitud.categoriaId()));
+            producto.setCategoria(categoria);
+        } else {
+            producto.setCategoria(null);
+        }
+
+        return productoMapper.aDTO(productoRepositorio.save(producto));
+    }
 
     // ── Helpers privados ──────────────────────────────────────
 

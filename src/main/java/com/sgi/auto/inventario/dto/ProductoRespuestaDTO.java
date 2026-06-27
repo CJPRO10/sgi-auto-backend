@@ -8,6 +8,7 @@ public record ProductoRespuestaDTO(
         String codigo,
         String nombre,
         String descripcion,
+        Long categoriaId,
         String categoriaNombre,
         String proveedorNombre,
         String unidadMedida,
