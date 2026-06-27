@@ -10,7 +10,7 @@ public record ClienteCrearDTO(
         String nombreCompleto,
 
         @NotBlank(message = "El tipo de identificación es obligatorio")
-        @Pattern(regexp = "CC|NIT", message = "El tipo debe ser CC o NIT")
+        @Pattern(regexp = "CC|NIT|CE|PASAPORTE", message = "Tipo de identificación inválido")
         String tipoIdentificacion,
 
         @NotBlank(message = "El número de identificación es obligatorio")

@@ -82,6 +82,8 @@ public class ClienteServicio {
             cliente.setCelular(solicitud.celular());
         if (solicitud.correo() != null)
             cliente.setCorreo(solicitud.correo());
+        if (solicitud.tipoIdentificacion() != null)
+            cliente.setTipoIdentificacion(solicitud.tipoIdentificacion());
 
         return clienteMapper.aDTO(clienteRepositorio.save(cliente));
     }
