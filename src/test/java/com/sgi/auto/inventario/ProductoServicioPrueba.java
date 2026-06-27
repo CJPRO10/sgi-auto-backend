@@ -47,23 +47,23 @@ class ProductoServicioPrueba {
         productoPrueba.setStockMinimo(3);
         productoPrueba.setEstaActivo(true);
         productoPrueba.setPrecioCompraConIva(new BigDecimal("50000"));
-        productoPrueba.setPrecioCompraSinIva(new BigDecimal("43103"));
-        productoPrueba.setPrecioVentaDetal(new BigDecimal("65000"));
-        productoPrueba.setPrecioVentaMayor(new BigDecimal("60000"));
+        productoPrueba.setPrecioCompraSinIva(new BigDecimal("50000"));
+        productoPrueba.setPrecioVentaDetal(new BigDecimal("80000"));
+        productoPrueba.setPrecioVentaMayor(new BigDecimal("80000"));
 
         solicitudCrear = new ProductoCrearDTO(
                 "PROD-001", "Alternador 12V", "Alternador para vehículos livianos",
                 null, null, "unidad",
-                new BigDecimal("50000"), new BigDecimal("43103"),
-                new BigDecimal("65000"), new BigDecimal("60000"),
+                new BigDecimal("50000"),
+                new BigDecimal("80000"),
                 3, true);
 
         respuestaPrueba = new ProductoRespuestaDTO(
                 1L, "PROD-001", "Alternador 12V", "Alternador para vehículos livianos",
                 null, null, "unidad",
-                new BigDecimal("50000"), new BigDecimal("43103"),
-                new BigDecimal("65000"), new BigDecimal("60000"),
-                new BigDecimal("51.04"), 10, 3, false, true, true, null);
+                new BigDecimal("50000"), new BigDecimal("50000"),
+                new BigDecimal("80000"), new BigDecimal("80000"),
+                new BigDecimal("60.00"), 10, 3, false, true, true, null);
     }
 
     @Test
