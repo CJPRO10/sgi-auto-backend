@@ -56,7 +56,9 @@ class ProductoServicioPrueba {
                 null, null, "unidad",
                 new BigDecimal("50000"),
                 new BigDecimal("80000"),
-                3, true);
+                10,  // stockActual
+                3,   // stockMinimo
+                true);
 
         respuestaPrueba = new ProductoRespuestaDTO(
                 1L, "PROD-001", "Alternador 12V", "Alternador para vehículos livianos",
