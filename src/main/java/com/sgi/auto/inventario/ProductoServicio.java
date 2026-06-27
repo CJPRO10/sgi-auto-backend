@@ -55,6 +55,7 @@ public class ProductoServicio {
         producto.setPrecioVentaMayor(solicitud.precioVentaCop());
 // Mapear precio de compra sin IVA igual al con IVA por defecto
         producto.setPrecioCompraSinIva(solicitud.precioCompraConIva());
+        producto.setStockActual(solicitud.stockActual());
         if (solicitud.categoriaId() != null) {
             Categoria categoria = categoriaRepositorio.findById(solicitud.categoriaId())
                     .orElseThrow(() -> new RecursoNoEncontradoExcepcion(

@@ -28,6 +28,8 @@ public record ProductoCrearDTO(
         @NotNull(message = "El precio de venta es obligatorio")
         @DecimalMin(value = "0.0", inclusive = false)
         BigDecimal precioVentaCop,
+        @Min(value = 0)
+        int stockActual,
 
         @Min(value = 0)
         int stockMinimo,
