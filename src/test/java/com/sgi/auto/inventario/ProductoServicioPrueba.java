@@ -62,10 +62,21 @@ class ProductoServicioPrueba {
 
         respuestaPrueba = new ProductoRespuestaDTO(
                 1L, "PROD-001", "Alternador 12V", "Alternador para vehículos livianos",
-                null, null, "unidad",
-                new BigDecimal("50000"), new BigDecimal("50000"),
-                new BigDecimal("80000"), new BigDecimal("80000"),
-                new BigDecimal("60.00"), 10, 3, false, true, true, null);
+                null,              // categoriaId
+                null,              // categoriaNombre
+                null,              // proveedorNombre
+                "unidad",          // unidadMedida
+                new BigDecimal("50000"),   // precioCompraConIva
+                new BigDecimal("50000"),   // precioCompraSinIva
+                new BigDecimal("80000"),   // precioVentaDetal
+                new BigDecimal("80000"),   // precioVentaMayor
+                new BigDecimal("60.00"),   // margenGananciaPct
+                10,                // stockActual
+                3,                 // stockMinimo
+                false,             // stockBajoMinimo
+                true,              // mostrarEnListaPrecios
+                true,              // estaActivo
+                null);             // creadoEn
     }
 
     @Test
