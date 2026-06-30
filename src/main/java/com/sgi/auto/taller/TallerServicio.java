@@ -35,7 +35,7 @@ public class TallerServicio {
     private final MovimientoStockRepositorio movimientoStockRepositorio;
     private final ClienteRepositorio clienteRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
-
+    private final RepuestoOTRepositorio repuestoOTRepositorio;
     // ── Órdenes de Trabajo ────────────────────────────────────
 
     /**
@@ -192,13 +192,15 @@ public class TallerServicio {
                 .stockDescontado(true)
                 .build();
 
-        ot.getRepuestos().add(repuesto);
+        RepuestoOT repuestoGuardado = repuestoOTRepositorio.save(repuesto);
+        ot.getRepuestos().add(repuestoGuardado);
         ot.recalcularTotales();
+        otRepositorio.save(ot);
 
         log.info("Repuesto agregado a OT #{}: producto={}, cantidad={}",
                 otId, producto.getNombre(), solicitud.cantidad());
 
-        return aDTO(otRepositorio.save(ot));
+        return aDTO(buscarOLanzar(otId));
     }
 
     @Transactional
