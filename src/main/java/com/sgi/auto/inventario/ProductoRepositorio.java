@@ -13,13 +13,14 @@ public interface ProductoRepositorio extends JpaRepository<Producto, Long> {
 
     // Búsqueda full-text con índice GIN
     @Query(value = """
-            SELECT * FROM productos
-            WHERE eliminado_en IS NULL
-              AND esta_activo = true
-              AND fn_texto_busqueda(nombre) @@ plainto_tsquery('spanish', :termino)
-            ORDER BY nombre
-            LIMIT 20
-            """, nativeQuery = true)
+        SELECT * FROM productos
+        WHERE eliminado_en IS NULL
+          AND esta_activo = true
+          AND (nombre ILIKE '%' || :termino || '%'
+               OR codigo ILIKE '%' || :termino || '%')
+        ORDER BY nombre
+        LIMIT 20
+        """, nativeQuery = true)
     List<Producto> buscarPorNombre(@Param("termino") String termino);
 
     // Búsqueda por código exacto
