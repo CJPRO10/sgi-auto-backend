@@ -36,6 +36,7 @@ public class TallerServicio {
     private final ClienteRepositorio clienteRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
     private final RepuestoOTRepositorio repuestoOTRepositorio;
+    private final ServicioOTRepositorio servicioOTRepositorio;
     // ── Órdenes de Trabajo ────────────────────────────────────
 
     /**
@@ -126,10 +127,11 @@ public class TallerServicio {
                         .multiply(BigDecimal.valueOf(solicitud.cantidad())))
                 .build();
 
-        ot.getServicios().add(servicio);
+        ServicioOT servicioGuardado = servicioOTRepositorio.save(servicio);
+        ot.getServicios().add(servicioGuardado);
         ot.recalcularTotales();
-
-        return aDTO(otRepositorio.save(ot));
+        otRepositorio.save(ot);
+        return aDTO(buscarOLanzar(otId));
     }
 
     @Transactional
