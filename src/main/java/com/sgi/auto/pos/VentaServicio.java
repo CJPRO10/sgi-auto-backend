@@ -4,6 +4,7 @@ import com.sgi.auto.caja.CajaServicio;
 import com.sgi.auto.clientes.Cliente;
 import com.sgi.auto.clientes.ClienteRepositorio;
 import com.sgi.auto.clientes.CreditoRepositorio;
+import com.sgi.auto.clientes.Credito;
 import com.sgi.auto.compartido.ConflictoExcepcion;
 import com.sgi.auto.compartido.RecursoNoEncontradoExcepcion;
 import com.sgi.auto.compartido.ReglaNegocioExcepcion;
@@ -50,7 +51,7 @@ public class VentaServicio {
     @Transactional
     public VentaRespuestaDTO crear(VentaCrearDTO solicitud) {
 
-        // Idempotencia: si ya existe con esta clave, retorna la existente
+        // Idempotencia
         var ventaExistente = ventaRepositorio
                 .findByClaveIdempotencia(solicitud.claveIdempotencia());
         if (ventaExistente.isPresent()) {
@@ -72,7 +73,6 @@ public class VentaServicio {
                         ? solicitud.puntosCanjeadosCop()
                         : BigDecimal.ZERO);
 
-        // Cliente anónimo o registrado
         if (solicitud.clienteId() != null) {
             Cliente cliente = clienteRepositorio.findById(solicitud.clienteId())
                     .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
@@ -85,7 +85,6 @@ public class VentaServicio {
                             : "Cliente general");
         }
 
-        // Procesar items
         List<ItemVenta> items = new ArrayList<>();
         BigDecimal subtotal = BigDecimal.ZERO;
 
@@ -94,7 +93,6 @@ public class VentaServicio {
                     .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
                             "No se encontró el producto con id: " + itemDTO.productoId()));
 
-            // Verificar stock suficiente
             if (producto.getStockActual() < itemDTO.cantidad()) {
                 throw new ReglaNegocioExcepcion(
                         "Stock insuficiente para el producto '" + producto.getNombre()
@@ -124,7 +122,6 @@ public class VentaServicio {
             items.add(item);
             subtotal = subtotal.add(subtotalItem);
 
-            // Descontar stock @Transactional
             int stockAntes = producto.getStockActual();
             producto.setStockActual(stockAntes - itemDTO.cantidad());
             productoRepositorio.save(producto);
@@ -143,21 +140,18 @@ public class VentaServicio {
         venta.setItems(items);
         venta.setSubtotalCop(subtotal);
 
-        // Calcular total
         BigDecimal total = subtotal
                 .subtract(venta.getDescuentoCop())
                 .subtract(venta.getPuntosCanjeadosCop());
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
         venta.setTotalCop(total);
 
-        // Calcular vuelto
         BigDecimal montoPagado = solicitud.montoPagadoCop() != null
                 ? solicitud.montoPagadoCop()
                 : total;
         venta.setMontoPagadoCop(montoPagado);
         venta.setVueltoCop(montoPagado.subtract(total).max(BigDecimal.ZERO));
 
-        // Acumular puntos (solo con cliente registrado)
         if (venta.getCliente() != null) {
             int puntosGanados = total.multiply(FACTOR_PUNTOS).intValue();
             venta.setPuntosGanados(puntosGanados);
@@ -171,30 +165,32 @@ public class VentaServicio {
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
         // Registrar en caja si hay sesión abierta
-        cajaServicio.registrarIngresoPorVenta(total, guardada.getId());
+        final BigDecimal totalFinal = total;
+        cajaServicio.registrarIngresoPorVenta(totalFinal, guardada.getId());
 
-// Si el pago es a crédito, registrar deuda
+        // Si el pago es a crédito, registrar deuda al cliente
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
             creditoRepositorio.buscarActivoPorCliente(venta.getCliente().getId())
                     .ifPresentOrElse(
                             credito -> {
-                                credito.setMontoTotalCop(credito.getMontoTotalCop().add(total));
+                                credito.setMontoTotalCop(
+                                        credito.getMontoTotalCop().add(totalFinal));
                                 creditoRepositorio.save(credito);
                             },
                             () -> {
-                                // Si no tiene crédito activo, crear uno nuevo
-                                Credito credito = Credito.builder()
+                                Credito nuevoCredito = Credito.builder()
                                         .cliente(venta.getCliente())
-                                        .montoTotalCop(total)
+                                        .montoTotalCop(totalFinal)
                                         .estaActivo(true)
                                         .build();
                                 venta.getCliente().setCreditoHabilitado(true);
-                                venta.getCliente().setCupoCreditoCop(total);
+                                venta.getCliente().setCupoCreditoCop(totalFinal);
                                 clienteRepositorio.save(venta.getCliente());
-                                creditoRepositorio.save(credito);
+                                creditoRepositorio.save(nuevoCredito);
                             }
                     );
         }
+
         return aDTO(guardada);
     }
 
