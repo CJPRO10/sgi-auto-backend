@@ -34,12 +34,7 @@ public class FidelizacionServicio {
     private final HistorialPuntosRepositorio historialPuntosRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
 
-    // ── Puntos (RF-009, RF-014, RF-015) ──────────────────────
-
-    /**
-     * Historial de puntos de un cliente.
-     * RF-009
-     */
+    //Historial de puntos de un cliente.
     @Transactional(readOnly = true)
     public Page<HistorialPuntosRespuestaDTO> historialPuntos(
             Long clienteId, Pageable pageable) {
@@ -49,10 +44,8 @@ public class FidelizacionServicio {
                 .map(this::aHistorialDTO);
     }
 
-    /**
-     * Ajuste manual de puntos por el DUEÑO.
-     * RF-015
-     */
+    //Ajuste manual de puntos por el DUEÑO.
+
     @Transactional
     public ClienteRespuestaDTO ajustarPuntos(Long clienteId, AjustePuntosDTO solicitud) {
         Cliente cliente = buscarClienteOLanzar(clienteId);
@@ -84,10 +77,7 @@ public class FidelizacionServicio {
         return aClienteDTO(cliente);
     }
 
-    /**
-     * Registra acumulación de puntos por una venta.
-     * RF-037 — llamado desde VentaServicio
-     */
+    //Registra acumulación de puntos por una venta.
     @Transactional
     public void acumularPuntos(Cliente cliente, int puntos, Long ventaId) {
         if (puntos <= 0) return;
@@ -107,10 +97,8 @@ public class FidelizacionServicio {
                 .build());
     }
 
-    /**
-     * Canje de puntos en una venta.
-     * RF-014
-     */
+    // Canje de puntos en una venta.
+
     @Transactional
     public void canjearPuntos(Cliente cliente, int puntos, Long ventaId) {
         if (cliente.getSaldoPuntos() < puntos) {
@@ -134,12 +122,31 @@ public class FidelizacionServicio {
                 .build());
     }
 
-    // ── Crédito (RF-012, RF-013, RF-016) ─────────────────────
+    // ── Crédito─────────────────────
 
-    /**
-     * Habilita el crédito para un cliente.
-     * RF-012
-     */
+    @Transactional
+    public CreditoRespuestaDTO agregarDeudaManual(Long clienteId, HabilitarCreditoDTO solicitud) {
+        Cliente cliente = buscarClienteOLanzar(clienteId);
+
+        Credito credito = creditoRepositorio.buscarActivoPorCliente(clienteId)
+                .orElseGet(() -> {
+                    Credito nuevo = Credito.builder()
+                            .cliente(cliente)
+                            .montoTotalCop(BigDecimal.ZERO)
+                            .estaActivo(true)
+                            .build();
+                    cliente.setCreditoHabilitado(true);
+                    clienteRepositorio.save(cliente);
+                    return creditoRepositorio.save(nuevo);
+                });
+
+        credito.setMontoTotalCop(credito.getMontoTotalCop().add(solicitud.montoTotalCop()));
+        Credito actualizado = creditoRepositorio.save(credito);
+        log.info("Deuda manual agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
+        return aCreditoDTO(actualizado);
+    }
+    // Habilita el crédito para un cliente.
+
     @Transactional
     public CreditoRespuestaDTO habilitarCredito(Long clienteId,
                                                 HabilitarCreditoDTO solicitud) {
@@ -173,10 +180,8 @@ public class FidelizacionServicio {
         return aCreditoDTO(guardado);
     }
 
-    /**
-     * Registra un pago o abono al crédito.
-     * RF-050 — también llamado desde CajaServicio
-     */
+    // Registra un pago o abono al crédito.
+
     @Transactional
     public CreditoRespuestaDTO registrarPago(Long clienteId, PagoCreditoDTO solicitud) {
         Credito credito = creditoRepositorio.buscarActivoPorCliente(clienteId)
@@ -215,10 +220,8 @@ public class FidelizacionServicio {
         return aCreditoDTO(actualizado);
     }
 
-    /**
-     * Obtiene el crédito activo de un cliente.
-     * RF-013
-     */
+    // Obtiene el crédito activo de un cliente.
+
     @Transactional(readOnly = true)
     public CreditoRespuestaDTO obtenerCreditoActivo(Long clienteId) {
         return creditoRepositorio.buscarActivoPorCliente(clienteId)

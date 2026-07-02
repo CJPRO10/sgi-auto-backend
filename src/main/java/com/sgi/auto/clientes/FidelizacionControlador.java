@@ -11,9 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * RF-009, RF-012 al RF-016
- */
+
 @RestController
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
@@ -52,6 +50,16 @@ public class FidelizacionControlador {
         return ResponseEntity.ok(ApiRespuesta.exitoso(
                 fidelizacionServicio.habilitarCredito(clienteId, solicitud),
                 "Crédito habilitado correctamente"));
+    }
+
+    @PostMapping("/{clienteId}/credito/deuda")
+    @PreAuthorize("hasRole('DUENO')")
+    public ResponseEntity<ApiRespuesta<CreditoRespuestaDTO>> agregarDeuda(
+            @PathVariable Long clienteId,
+            @Valid @RequestBody HabilitarCreditoDTO solicitud) {
+        return ResponseEntity.ok(ApiRespuesta.exitoso(
+                fidelizacionServicio.agregarDeudaManual(clienteId, solicitud),
+                "Deuda registrada correctamente"));
     }
 
     @GetMapping("/{clienteId}/credito")
