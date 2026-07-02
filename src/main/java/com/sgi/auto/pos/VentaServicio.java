@@ -1,7 +1,9 @@
 package com.sgi.auto.pos;
 
+import com.sgi.auto.caja.CajaServicio;
 import com.sgi.auto.clientes.Cliente;
 import com.sgi.auto.clientes.ClienteRepositorio;
+import com.sgi.auto.clientes.CreditoRepositorio;
 import com.sgi.auto.compartido.ConflictoExcepcion;
 import com.sgi.auto.compartido.RecursoNoEncontradoExcepcion;
 import com.sgi.auto.compartido.ReglaNegocioExcepcion;
@@ -39,6 +41,8 @@ public class VentaServicio {
     private final ProductoRepositorio productoRepositorio;
     private final MovimientoStockRepositorio movimientoStockRepositorio;
     private final ClienteRepositorio clienteRepositorio;
+    private final CajaServicio cajaServicio;
+    private final CreditoRepositorio creditoRepositorio;
 
     // Regla de negocio: cada COP gastado = 1 punto
     private static final BigDecimal FACTOR_PUNTOS = BigDecimal.ONE;
@@ -166,6 +170,31 @@ public class VentaServicio {
         log.info("Venta creada: id={}, total={}, items={}",
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
+        // Registrar en caja si hay sesión abierta
+        cajaServicio.registrarIngresoPorVenta(total, guardada.getId());
+
+// Si el pago es a crédito, registrar deuda
+        if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
+            creditoRepositorio.buscarActivoPorCliente(venta.getCliente().getId())
+                    .ifPresentOrElse(
+                            credito -> {
+                                credito.setMontoTotalCop(credito.getMontoTotalCop().add(total));
+                                creditoRepositorio.save(credito);
+                            },
+                            () -> {
+                                // Si no tiene crédito activo, crear uno nuevo
+                                Credito credito = Credito.builder()
+                                        .cliente(venta.getCliente())
+                                        .montoTotalCop(total)
+                                        .estaActivo(true)
+                                        .build();
+                                venta.getCliente().setCreditoHabilitado(true);
+                                venta.getCliente().setCupoCreditoCop(total);
+                                clienteRepositorio.save(venta.getCliente());
+                                creditoRepositorio.save(credito);
+                            }
+                    );
+        }
         return aDTO(guardada);
     }
 
