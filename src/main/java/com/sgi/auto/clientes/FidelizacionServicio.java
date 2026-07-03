@@ -27,6 +27,7 @@ public class FidelizacionServicio {
     private final CreditoRepositorio creditoRepositorio;
     private final HistorialPuntosRepositorio historialPuntosRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
+    private final PagoCreditoRepositorio pagoCreditoRepositorio;
 
     // ── Puntos ────────────────────────────────────────────────
 
@@ -209,17 +210,18 @@ public class FidelizacionServicio {
                 });
 
         credito.setMontoTotalCop(credito.getMontoTotalCop().add(solicitud.montoTotalCop()));
+        Credito actualizado = creditoRepositorio.save(credito);
 
         PagoCredito movimiento = PagoCredito.builder()
-                .credito(credito)
+                .credito(actualizado)
                 .montoCop(solicitud.montoTotalCop().negate())
-                .notas("DEUDA: " + (solicitud.notas() != null ? solicitud.notas() : "Deuda manual"))
+                .notas("DEUDA: " + (solicitud.notas() != null
+                        ? solicitud.notas() : "Deuda manual"))
                 .build();
-        credito.getPagos().add(movimiento);
+        pagoCreditoRepositorio.save(movimiento);
 
-        Credito actualizado = creditoRepositorio.save(credito);
-        log.info("Deuda manual agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
-        return aCreditoDTO(actualizado);
+        log.info("Deuda agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
+        return aCreditoDTO(creditoRepositorio.findById(actualizado.getId()).orElse(actualizado));
     }
 
     // ── Helpers privados ──────────────────────────────────────
