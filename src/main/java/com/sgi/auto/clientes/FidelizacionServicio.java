@@ -14,16 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 
-/**
- * Servicio de fidelización y crédito.
- * RF-009 — Perfil de puntos
- * RF-012 — Habilitación de crédito
- * RF-013 — Control saldo y alerta
- * RF-014 — Canje de puntos
- * RF-015 — Ajuste manual de puntos
- * RF-016 — Reporte cartera
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -34,7 +28,8 @@ public class FidelizacionServicio {
     private final HistorialPuntosRepositorio historialPuntosRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
 
-    //Historial de puntos de un cliente.
+    // ── Puntos ────────────────────────────────────────────────
+
     @Transactional(readOnly = true)
     public Page<HistorialPuntosRespuestaDTO> historialPuntos(
             Long clienteId, Pageable pageable) {
@@ -43,8 +38,6 @@ public class FidelizacionServicio {
                 .listarPorCliente(clienteId, pageable)
                 .map(this::aHistorialDTO);
     }
-
-    //Ajuste manual de puntos por el DUEÑO.
 
     @Transactional
     public ClienteRespuestaDTO ajustarPuntos(Long clienteId, AjustePuntosDTO solicitud) {
@@ -77,7 +70,6 @@ public class FidelizacionServicio {
         return aClienteDTO(cliente);
     }
 
-    //Registra acumulación de puntos por una venta.
     @Transactional
     public void acumularPuntos(Cliente cliente, int puntos, Long ventaId) {
         if (puntos <= 0) return;
@@ -96,8 +88,6 @@ public class FidelizacionServicio {
                 .ventaId(ventaId)
                 .build());
     }
-
-    // Canje de puntos en una venta.
 
     @Transactional
     public void canjearPuntos(Cliente cliente, int puntos, Long ventaId) {
@@ -122,30 +112,7 @@ public class FidelizacionServicio {
                 .build());
     }
 
-    // ── Crédito─────────────────────
-
-    @Transactional
-    public CreditoRespuestaDTO agregarDeudaManual(Long clienteId, HabilitarCreditoDTO solicitud) {
-        Cliente cliente = buscarClienteOLanzar(clienteId);
-
-        Credito credito = creditoRepositorio.buscarActivoPorCliente(clienteId)
-                .orElseGet(() -> {
-                    Credito nuevo = Credito.builder()
-                            .cliente(cliente)
-                            .montoTotalCop(BigDecimal.ZERO)
-                            .estaActivo(true)
-                            .build();
-                    cliente.setCreditoHabilitado(true);
-                    clienteRepositorio.save(cliente);
-                    return creditoRepositorio.save(nuevo);
-                });
-
-        credito.setMontoTotalCop(credito.getMontoTotalCop().add(solicitud.montoTotalCop()));
-        Credito actualizado = creditoRepositorio.save(credito);
-        log.info("Deuda manual agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
-        return aCreditoDTO(actualizado);
-    }
-    // Habilita el crédito para un cliente.
+    // ── Crédito ───────────────────────────────────────────────
 
     @Transactional
     public CreditoRespuestaDTO habilitarCredito(Long clienteId,
@@ -180,8 +147,6 @@ public class FidelizacionServicio {
         return aCreditoDTO(guardado);
     }
 
-    // Registra un pago o abono al crédito.
-
     @Transactional
     public CreditoRespuestaDTO registrarPago(Long clienteId, PagoCreditoDTO solicitud) {
         Credito credito = creditoRepositorio.buscarActivoPorCliente(clienteId)
@@ -200,7 +165,6 @@ public class FidelizacionServicio {
         credito.setMontoPagadoCop(
                 credito.getMontoPagadoCop().add(solicitud.montoCop()));
 
-        // Si pagó todo, desactivar el crédito
         if (credito.getMontoPagadoCop().compareTo(credito.getMontoTotalCop()) >= 0) {
             credito.setEstaActivo(false);
             credito.getCliente().setCreditoHabilitado(false);
@@ -220,14 +184,42 @@ public class FidelizacionServicio {
         return aCreditoDTO(actualizado);
     }
 
-    // Obtiene el crédito activo de un cliente.
-
     @Transactional(readOnly = true)
     public CreditoRespuestaDTO obtenerCreditoActivo(Long clienteId) {
         return creditoRepositorio.buscarActivoPorCliente(clienteId)
                 .map(this::aCreditoDTO)
                 .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
                         "El cliente no tiene un crédito activo"));
+    }
+
+    @Transactional
+    public CreditoRespuestaDTO agregarDeudaManual(Long clienteId, HabilitarCreditoDTO solicitud) {
+        Cliente cliente = buscarClienteOLanzar(clienteId);
+
+        Credito credito = creditoRepositorio.buscarActivoPorCliente(clienteId)
+                .orElseGet(() -> {
+                    Credito nuevo = Credito.builder()
+                            .cliente(cliente)
+                            .montoTotalCop(BigDecimal.ZERO)
+                            .estaActivo(true)
+                            .build();
+                    cliente.setCreditoHabilitado(true);
+                    clienteRepositorio.save(cliente);
+                    return creditoRepositorio.save(nuevo);
+                });
+
+        credito.setMontoTotalCop(credito.getMontoTotalCop().add(solicitud.montoTotalCop()));
+
+        PagoCredito movimiento = PagoCredito.builder()
+                .credito(credito)
+                .montoCop(solicitud.montoTotalCop().negate())
+                .notas("DEUDA: " + (solicitud.notas() != null ? solicitud.notas() : "Deuda manual"))
+                .build();
+        credito.getPagos().add(movimiento);
+
+        Credito actualizado = creditoRepositorio.save(credito);
+        log.info("Deuda manual agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
+        return aCreditoDTO(actualizado);
     }
 
     // ── Helpers privados ──────────────────────────────────────
@@ -242,6 +234,23 @@ public class FidelizacionServicio {
     private CreditoRespuestaDTO aCreditoDTO(Credito credito) {
         BigDecimal restante = credito.getMontoTotalCop()
                 .subtract(credito.getMontoPagadoCop());
+
+        List<CreditoRespuestaDTO.MovimientoCreditoDTO> movimientos = new ArrayList<>();
+
+        credito.getPagos().forEach(p ->
+                movimientos.add(new CreditoRespuestaDTO.MovimientoCreditoDTO(
+                        p.getMontoCop().compareTo(BigDecimal.ZERO) < 0 ? "DEUDA" : "ABONO",
+                        p.getMontoCop(),
+                        p.getNotas(),
+                        p.getCreadoEn()
+                ))
+        );
+
+        movimientos.sort(Comparator.comparing(
+                CreditoRespuestaDTO.MovimientoCreditoDTO::fecha,
+                Comparator.nullsLast(Comparator.naturalOrder())
+        ));
+
         return new CreditoRespuestaDTO(
                 credito.getId(),
                 credito.getCliente().getId(),
@@ -250,7 +259,8 @@ public class FidelizacionServicio {
                 credito.getMontoPagadoCop(),
                 restante,
                 credito.isEstaActivo(),
-                credito.getCreadoEn());
+                credito.getCreadoEn(),
+                movimientos);
     }
 
     private HistorialPuntosRespuestaDTO aHistorialDTO(HistorialPuntos h) {
