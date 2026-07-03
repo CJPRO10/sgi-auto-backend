@@ -102,7 +102,7 @@ class FidelizacionServicioPrueba {
         when(creditoRepositorio.save(any())).thenReturn(creditoPrueba);
 
         CreditoRespuestaDTO resultado = fidelizacionServicio.habilitarCredito(1L,
-                new HabilitarCreditoDTO(new BigDecimal("500000")));
+                new HabilitarCreditoDTO(new BigDecimal("500000"), null));
 
         assertThat(resultado).isNotNull();
         assertThat(clientePrueba.isCreditoHabilitado()).isTrue();
@@ -117,7 +117,7 @@ class FidelizacionServicioPrueba {
 
         assertThatThrownBy(() ->
                 fidelizacionServicio.habilitarCredito(1L,
-                        new HabilitarCreditoDTO(new BigDecimal("300000"))))
+                        new HabilitarCreditoDTO(new BigDecimal("300000"), null)))
                 .isInstanceOf(ConflictoExcepcion.class)
                 .hasMessageContaining("ya tiene un crédito activo");
     }
