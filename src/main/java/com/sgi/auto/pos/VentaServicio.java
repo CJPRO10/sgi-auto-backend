@@ -183,7 +183,9 @@ public class VentaServicio {
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
         final BigDecimal totalFinal = total;
-        cajaServicio.registrarIngresoPorVenta(totalFinal, guardada.getId());
+        cajaServicio.registrarIngresoPorVenta(
+                totalFinal, guardada.getId(),
+                montoEfectivo, montoTransferencia, montoCredito);
 
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
             creditoRepositorio.buscarActivoPorCliente(venta.getCliente().getId())

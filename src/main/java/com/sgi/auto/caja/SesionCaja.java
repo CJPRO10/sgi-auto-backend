@@ -10,12 +10,6 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Representa una sesión de trabajo en caja.
- * RF-044 — Apertura
- * RF-047 — Cierre
- * RF-049 — Historial
- */
 @Entity
 @Table(name = "sesiones_caja")
 @Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
@@ -60,6 +54,18 @@ public class SesionCaja extends EntidadBase {
     @Column(name = "esta_abierta", nullable = false)
     @Builder.Default
     private boolean estaAbierta = true;
+
+    @Column(name = "total_efectivo_cop", nullable = false, precision = 14, scale = 2)
+    @Builder.Default
+    private BigDecimal totalEfectivoCop = BigDecimal.ZERO;
+
+    @Column(name = "total_transferencia_cop", nullable = false, precision = 14, scale = 2)
+    @Builder.Default
+    private BigDecimal totalTransferenciaCop = BigDecimal.ZERO;
+
+    @Column(name = "total_credito_cop", nullable = false, precision = 14, scale = 2)
+    @Builder.Default
+    private BigDecimal totalCreditoCop = BigDecimal.ZERO;
 
     @OneToMany(mappedBy = "sesion", cascade = CascadeType.ALL)
     @Builder.Default

@@ -155,11 +155,15 @@ public class CajaServicio {
 
     // Registra automáticamente el ingreso de una venta en caja.
     @Transactional
-    public void registrarIngresoPorVenta(BigDecimal monto, Long ventaId) {
+    public void registrarIngresoPorVenta(BigDecimal monto, Long ventaId,
+                                         BigDecimal montoEfectivo, BigDecimal montoTransferencia, BigDecimal montoCredito) {
         sesionCajaRepositorio.buscarSesionAbierta().ifPresent(sesion -> {
             registrarMovimiento(sesion, TipoMovimientoCaja.VENTA,
                     monto, "Venta POS #" + ventaId, ventaId);
             sesion.setTotalVentasCop(sesion.getTotalVentasCop().add(monto));
+            sesion.setTotalEfectivoCop(sesion.getTotalEfectivoCop().add(montoEfectivo));
+            sesion.setTotalTransferenciaCop(sesion.getTotalTransferenciaCop().add(montoTransferencia));
+            sesion.setTotalCreditoCop(sesion.getTotalCreditoCop().add(montoCredito));
             sesionCajaRepositorio.save(sesion);
         });
     }
@@ -219,6 +223,9 @@ public class CajaServicio {
                 sesion.getSaldoInicialCop(),
                 sesion.getSaldoFinalCop(),
                 sesion.getTotalVentasCop(),
+                sesion.getTotalEfectivoCop(),
+                sesion.getTotalTransferenciaCop(),
+                sesion.getTotalCreditoCop(),
                 sesion.getTotalGastosCop(),
                 sesion.getTotalAbonosCreditoCop(),
                 sesion.getDiferenciaCop(),
