@@ -23,7 +23,10 @@ public record VentaCrearDTO(
 
         BigDecimal descuentoCop,
         BigDecimal puntosCanjeadosCop,
-        BigDecimal montoPagadoCop
+        BigDecimal montoPagadoCop,
+        BigDecimal montoEfectivoCop,
+        BigDecimal montoTransferenciaCop,
+        BigDecimal montoCreditoCop
 ) {
     public record ItemVentaDTO(
             @NotNull Long productoId,

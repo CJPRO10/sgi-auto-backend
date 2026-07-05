@@ -63,7 +63,10 @@ class VentaServicioPrueba {
                         BigDecimal.ZERO)),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
-                new BigDecimal("150000"));
+                new BigDecimal("150000"),
+                null,
+                null,
+                null);
     }
 
     @Test

@@ -146,11 +146,29 @@ public class VentaServicio {
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
         venta.setTotalCop(total);
 
-        BigDecimal montoPagado = solicitud.montoPagadoCop() != null
-                ? solicitud.montoPagadoCop()
-                : total;
-        venta.setMontoPagadoCop(montoPagado);
-        venta.setVueltoCop(montoPagado.subtract(total).max(BigDecimal.ZERO));
+        // Desglose de montos por método de pago
+        BigDecimal montoEfectivo = solicitud.montoEfectivoCop() != null
+                ? solicitud.montoEfectivoCop() : BigDecimal.ZERO;
+        BigDecimal montoTransferencia = solicitud.montoTransferenciaCop() != null
+                ? solicitud.montoTransferenciaCop() : BigDecimal.ZERO;
+        BigDecimal montoCredito = solicitud.montoCreditoCop() != null
+                ? solicitud.montoCreditoCop() : BigDecimal.ZERO;
+
+        if (solicitud.metodoPago() == MetodoPago.EFECTIVO) {
+            montoEfectivo = solicitud.montoPagadoCop() != null
+                    ? solicitud.montoPagadoCop() : total;
+        } else if (solicitud.metodoPago() == MetodoPago.TRANSFERENCIA) {
+            montoTransferencia = total;
+        } else if (solicitud.metodoPago() == MetodoPago.CREDITO) {
+            montoCredito = total;
+        }
+
+        venta.setMontoPagadoCop(montoEfectivo);
+        venta.setMontoTransferenciaCop(montoTransferencia);
+        venta.setMontoCreditoCop(montoCredito);
+        venta.setVueltoCop(montoEfectivo.subtract(
+                        solicitud.metodoPago() == MetodoPago.EFECTIVO ? total : BigDecimal.ZERO)
+                .max(BigDecimal.ZERO));
 
         if (venta.getCliente() != null) {
             int puntosGanados = total.multiply(FACTOR_PUNTOS).intValue();
@@ -164,11 +182,9 @@ public class VentaServicio {
         log.info("Venta creada: id={}, total={}, items={}",
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
-        // Registrar en caja si hay sesión abierta
         final BigDecimal totalFinal = total;
         cajaServicio.registrarIngresoPorVenta(totalFinal, guardada.getId());
 
-        // Si el pago es a crédito, registrar deuda al cliente
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
             creditoRepositorio.buscarActivoPorCliente(venta.getCliente().getId())
                     .ifPresentOrElse(
@@ -190,7 +206,6 @@ public class VentaServicio {
                             }
                     );
         }
-
         return aDTO(guardada);
     }
 
