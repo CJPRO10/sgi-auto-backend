@@ -16,15 +16,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.security.core.context.SecurityContextHolder;
+import com.sgi.auto.usuarios.RolUsuario;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/**
- * Servicio del módulo Taller.
- * RF-052 al RF-069
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -39,15 +36,13 @@ public class TallerServicio {
     private final ServicioOTRepositorio servicioOTRepositorio;
     // ── Órdenes de Trabajo ────────────────────────────────────
 
-    /**
-     * Crea una nueva Orden de Trabajo.
-     * RF-052, RF-053, RF-054
-     */
+    // Crea una nueva Orden de Trabajo.
+
     @Transactional
     public OTRespuestaDTO crear(OTCrearDTO solicitud) {
         OrdenDeTrabajo ot = new OrdenDeTrabajo();
 
-        // RF-053 — Datos del cliente (denormalizados)
+        // Datos del cliente (denormalizados)
         ot.setNombreCliente(solicitud.nombreCliente());
         ot.setCelularCliente(solicitud.celularCliente());
 
@@ -56,7 +51,7 @@ public class TallerServicio {
                     .ifPresent(ot::setCliente);
         }
 
-        // RF-054 — Datos del vehículo
+        // Datos del vehículo
         ot.setPlaca(solicitud.placa().toUpperCase());
         ot.setMarcaVehiculo(solicitud.marcaVehiculo());
         ot.setModeloVehiculo(solicitud.modeloVehiculo());
@@ -71,10 +66,20 @@ public class TallerServicio {
                         : BigDecimal.ZERO);
         ot.setFechaPrometidaEntrega(solicitud.fechaPrometidaEntrega());
 
-        // RF-058 — Asignar mecánico
+        // Asignar mecánico
         if (solicitud.mecanicoId() != null) {
             usuarioRepositorio.findById(solicitud.mecanicoId())
                     .ifPresent(ot::setMecanico);
+        } else {
+            // Si el usuario actual es mecánico, se auto-asigna
+            String nombreUsuario = SecurityContextHolder.getContext()
+                    .getAuthentication().getName();
+            usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                    .ifPresent(usuario -> {
+                        if (usuario.getRol() == RolUsuario.MECANICO) {
+                            ot.setMecanico(usuario);
+                        }
+                    });
         }
 
         OrdenDeTrabajo guardada = otRepositorio.save(ot);
@@ -97,21 +102,21 @@ public class TallerServicio {
         return otRepositorio.listarTodas(pageable).map(this::aDTO);
     }
 
-    // RF-055 — Historial por placa
+    // Historial por placa
     @Transactional(readOnly = true)
     public List<OTRespuestaDTO> buscarPorPlaca(String placa) {
         return otRepositorio.buscarPorPlaca(placa.toUpperCase())
                 .stream().map(this::aDTO).toList();
     }
 
-    // RF-069 — OTs del mecánico
+    // OTs del mecánico
     @Transactional(readOnly = true)
     public List<OTRespuestaDTO> otActivasPorMecanico(Long mecanicoId) {
         return otRepositorio.otActivasPorMecanico(mecanicoId)
                 .stream().map(this::aDTO).toList();
     }
 
-    // ── Servicios de la OT (RF-059) ───────────────────────────
+    // ── Servicios de la OT ───────────────────────────
 
     @Transactional
     public OTRespuestaDTO agregarServicio(Long otId, ServicioOTDTO solicitud) {
@@ -145,12 +150,10 @@ public class TallerServicio {
         return aDTO(otRepositorio.save(ot));
     }
 
-    // ── Repuestos de la OT (RF-060, RF-061) ───────────────────
+    // ── Repuestos de la OT ───────────────────
 
-    /**
-     * Agrega un repuesto a la OT y descuenta el stock del inventario.
-     * RF-060, RF-061 — @Transactional garantiza consistencia
-     */
+    // Agrega un repuesto a la OT y descuenta el stock del inventario.
+
     @Transactional
     public OTRespuestaDTO agregarRepuesto(Long otId, RepuestoOTDTO solicitud) {
         OrdenDeTrabajo ot = buscarOLanzar(otId);
@@ -160,7 +163,7 @@ public class TallerServicio {
                 .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
                         "No se encontró el producto con id: " + solicitud.productoId()));
 
-        // RF-061 — Verificar y descontar stock
+        // Verificar y descontar stock
         if (producto.getStockActual() < solicitud.cantidad()) {
             throw new ReglaNegocioExcepcion(
                     "Stock insuficiente para '" + producto.getNombre()
@@ -237,7 +240,7 @@ public class TallerServicio {
         return aDTO(otRepositorio.save(ot));
     }
 
-    // ── Estado de la OT (RF-067) ──────────────────────────────
+    // ── Estado de la OT ──────────────────────────────
 
     @Transactional
     public OTRespuestaDTO cambiarEstado(Long otId, CambioEstadoDTO solicitud) {
@@ -250,7 +253,7 @@ public class TallerServicio {
             ot.setObservacionesMecanico(solicitud.observaciones());
         }
 
-        // RF-068 — Hora de salida automática al entregar
+        // Hora de salida automática al entregar
         if (solicitud.nuevoEstado() == EstadoOT.ENTREGADO) {
             ot.setFechaEntregaReal(OffsetDateTime.now());
         }
