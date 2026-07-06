@@ -12,17 +12,16 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import org.springframework.security.core.Authentication;
+import com.sgi.auto.usuarios.UsuarioRepositorio;
+import com.sgi.auto.reportes.dto.DashboardMecanicoDTO;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
-/**
- * Servicio de dashboards y métricas.
- * RF-096 al RF-102
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,7 +32,7 @@ public class DashboardServicio {
     private final OrdenDeTrabajoRepositorio otRepositorio;
     private final CreditoRepositorio creditoRepositorio;
     private final SesionCajaRepositorio sesionCajaRepositorio;
-
+    private final UsuarioRepositorio usuarioRepositorio;
     private static final ZoneOffset ZONA_CO = ZoneOffset.of("-05:00");
 
     /**
@@ -51,7 +50,7 @@ public class DashboardServicio {
         );
     }
 
-    // ── RF-096 — Resumen del día ──────────────────────
+    // ── Resumen del día ──────────────────────
 
     private DashboardDTO.ResumenDiaDTO calcularResumenDia() {
         OffsetDateTime inicioDia = LocalDate.now()
@@ -84,8 +83,65 @@ public class DashboardServicio {
                 puntosOtorgados,
                 (int) clientesAtendidos);
     }
+    @Transactional(readOnly = true)
+    public DashboardMecanicoDTO obtenerDashboardMecanico(String nombreUsuario) {
+        var mecanico = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                .orElseThrow(() -> new com.sgi.auto.compartido.RecursoNoEncontradoExcepcion(
+                        "Usuario no encontrado"));
 
-    // ── RF-097 — Indicadores de inventario ───────────
+        var todasLasOts = otRepositorio.findAll();
+
+        var otsMecanico = todasLasOts.stream()
+                .filter(o -> o.getMecanico() != null
+                        && o.getMecanico().getId().equals(mecanico.getId()))
+                .toList();
+
+        long enReparacion = otsMecanico.stream()
+                .filter(o -> o.getEstado() == com.sgi.auto.taller.EstadoOT.EN_REPARACION)
+                .count();
+
+        long listas = otsMecanico.stream()
+                .filter(o -> o.getEstado() == com.sgi.auto.taller.EstadoOT.LISTO)
+                .count();
+
+        long activas = otsMecanico.stream()
+                .filter(o -> o.getEstado() != com.sgi.auto.taller.EstadoOT.ENTREGADO
+                        && o.getEstado() != com.sgi.auto.taller.EstadoOT.CANCELADO)
+                .count();
+
+        var hoy = java.time.LocalDate.now();
+        long entregadasHoy = otsMecanico.stream()
+                .filter(o -> o.getEstado() == com.sgi.auto.taller.EstadoOT.ENTREGADO
+                        && o.getFechaEntregaReal() != null
+                        && o.getFechaEntregaReal().toLocalDate().equals(hoy))
+                .count();
+
+        var inicioMes = hoy.withDayOfMonth(1).atStartOfDay()
+                .atOffset(java.time.ZoneOffset.of("-05:00"));
+
+        var otsMes = otsMecanico.stream()
+                .filter(o -> o.getCreadoEn() != null
+                        && !o.getCreadoEn().isBefore(inicioMes))
+                .toList();
+
+        java.math.BigDecimal totalFacturado = otsMes.stream()
+                .map(o -> o.getGranTotalCop() != null
+                        ? o.getGranTotalCop() : java.math.BigDecimal.ZERO)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        return new DashboardMecanicoDTO(
+                mecanico.getNombreCompleto(),
+                hoy,
+                (int) activas,
+                (int) enReparacion,
+                (int) listas,
+                (int) entregadasHoy,
+                otsMes.size(),
+                totalFacturado
+        );
+    }
+
+    // ── Indicadores de inventario ───────────
 
     private DashboardDTO.IndicadoresInventarioDTO calcularIndicadoresInventario() {
         var productos = productoRepositorio.findAll().stream()
