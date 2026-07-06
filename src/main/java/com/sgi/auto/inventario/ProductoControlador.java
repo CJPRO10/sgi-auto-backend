@@ -1,7 +1,9 @@
 package com.sgi.auto.inventario;
 
 import com.sgi.auto.compartido.ApiRespuesta;
-import com.sgi.auto.inventario.dto.*;
+import com.sgi.auto.inventario.dto.AjusteStockDTO;
+import com.sgi.auto.inventario.dto.ProductoCrearDTO;
+import com.sgi.auto.inventario.dto.ProductoRespuestaDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -15,136 +17,74 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/inventario")
+@RequestMapping("/api/inventario/productos")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('DUENO','CAJERA')")
 public class ProductoControlador {
 
     private final ProductoServicio productoServicio;
 
-    // ── Productos ─────────────────────────────────────────────
-
-    @PostMapping("/productos")
-    @PreAuthorize("hasRole('DUENO')")
-    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> crearProducto(
+    @PostMapping
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
+    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> crear(
             @Valid @RequestBody ProductoCrearDTO solicitud) {
-        return ResponseEntity.status(HttpStatus.CREATED)
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
                 .body(ApiRespuesta.exitoso(
                         productoServicio.crearProducto(solicitud),
                         "Producto creado correctamente"));
     }
 
-    @PutMapping("/productos/{id}")
-    @PreAuthorize("hasRole('DUENO')")
-    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> actualizar(
-            @PathVariable Long id,
-            @Valid @RequestBody ProductoCrearDTO solicitud) {
-        return ResponseEntity.ok(ApiRespuesta.exitoso(
-                productoServicio.actualizarProducto(id, solicitud),
-                "Producto actualizado correctamente"));
-    }
-
-    @GetMapping("/productos")
+    @GetMapping
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<Page<ProductoRespuestaDTO>>> listar(
-            @PageableDefault(size = 20, sort = "nombre") Pageable pageable) {
+            @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(
                 ApiRespuesta.exitoso(productoServicio.listarTodos(pageable)));
     }
 
-    @GetMapping("/productos/{id}")
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> obtenerPorId(
             @PathVariable Long id) {
         return ResponseEntity.ok(
                 ApiRespuesta.exitoso(productoServicio.obtenerPorId(id)));
     }
 
-    @GetMapping("/productos/codigo/{codigo}")
-    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> obtenerPorCodigo(
-            @PathVariable String codigo) {
-        return ResponseEntity.ok(
-                ApiRespuesta.exitoso(productoServicio.obtenerPorCodigo(codigo)));
-    }
-
-    @GetMapping("/productos/buscar")
+    @GetMapping("/buscar")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<List<ProductoRespuestaDTO>>> buscar(
             @RequestParam String q) {
         return ResponseEntity.ok(
                 ApiRespuesta.exitoso(productoServicio.buscar(q)));
     }
 
-    @GetMapping("/productos/stock-bajo")
-    public ResponseEntity<ApiRespuesta<List<ProductoRespuestaDTO>>> stockBajo() {
+    @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
+    public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> actualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody ProductoCrearDTO solicitud) {
         return ResponseEntity.ok(
-                ApiRespuesta.exitoso(productoServicio.listarConStockBajoMinimo()));
+                ApiRespuesta.exitoso(
+                        productoServicio.actualizarProducto(id, solicitud),
+                        "Producto actualizado correctamente"));
     }
 
-    // ── Entrada de Mercancía ──────────────────────────────────
-
-    @PostMapping("/entradas")
+    @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('DUENO')")
-    public ResponseEntity<ApiRespuesta<Void>> registrarEntrada(
-            @Valid @RequestBody EntradaMercanciaDTO solicitud) {
-        productoServicio.registrarEntrada(solicitud);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiRespuesta.exitoso(null, "Entrada de mercancía registrada correctamente"));
+    public ResponseEntity<ApiRespuesta<Void>> eliminar(@PathVariable Long id) {
+        productoServicio.desactivarProducto(id);
+        return ResponseEntity.ok(
+                ApiRespuesta.exitoso(null, "Producto eliminado correctamente"));
     }
 
-    // ── Ajuste de Stock ───────────────────────────────────────
-
-    @PatchMapping("/productos/{id}/ajuste-stock")
-    @PreAuthorize("hasRole('DUENO')")
+    @PostMapping("/{id}/ajustar-stock")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
     public ResponseEntity<ApiRespuesta<ProductoRespuestaDTO>> ajustarStock(
             @PathVariable Long id,
             @Valid @RequestBody AjusteStockDTO solicitud) {
-        return ResponseEntity.ok(ApiRespuesta.exitoso(
-                productoServicio.ajustarStock(id, solicitud),
-                "Stock ajustado correctamente"));
-    }
-
-    // ── Kardex ────────────────────────────────────────────────
-
-    @GetMapping("/productos/{id}/kardex")
-    public ResponseEntity<ApiRespuesta<Page<KardexRespuestaDTO>>> kardex(
-            @PathVariable Long id,
-            @PageableDefault(size = 50) Pageable pageable) {
         return ResponseEntity.ok(
-                ApiRespuesta.exitoso(productoServicio.obtenerKardex(id, pageable)));
-    }
-
-    // ── Categorías ────────────────────────────────────────────
-
-    @GetMapping("/categorias")
-    public ResponseEntity<ApiRespuesta<List<Categoria>>> listarCategorias() {
-        return ResponseEntity.ok(
-                ApiRespuesta.exitoso(productoServicio.listarCategorias()));
-    }
-
-    @PostMapping("/categorias")
-    @PreAuthorize("hasRole('DUENO')")
-    public ResponseEntity<ApiRespuesta<Categoria>> crearCategoria(
-            @RequestParam String nombre,
-            @RequestParam(required = false) String descripcion) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiRespuesta.exitoso(
-                        productoServicio.crearCategoria(nombre, descripcion),
-                        "Categoría creada correctamente"));
-    }
-
-    // ── Proveedores ───────────────────────────────────────────
-
-    @GetMapping("/proveedores")
-    public ResponseEntity<ApiRespuesta<List<Proveedor>>> listarProveedores() {
-        return ResponseEntity.ok(
-                ApiRespuesta.exitoso(productoServicio.listarProveedores()));
-    }
-
-    @PostMapping("/proveedores")
-    @PreAuthorize("hasRole('DUENO')")
-    public ResponseEntity<ApiRespuesta<Proveedor>> crearProveedor(
-            @Valid @RequestBody Proveedor proveedor) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiRespuesta.exitoso(
-                        productoServicio.crearProveedor(proveedor),
-                        "Proveedor creado correctamente"));
+                ApiRespuesta.exitoso(
+                        productoServicio.ajustarStock(id, solicitud),
+                        "Stock ajustado correctamente"));
     }
 }

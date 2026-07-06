@@ -75,6 +75,16 @@ public class ProductoServicio {
         return productoMapper.aDTO(guardado);
     }
 
+    @Transactional
+    public void desactivarProducto(Long id) {
+        Producto producto = productoRepositorio.findById(id)
+                .orElseThrow(() -> new RecursoNoEncontradoExcepcion(
+                        "No se encontró el producto con id: " + id));
+        producto.setEstaActivo(false);
+        productoRepositorio.save(producto);
+        log.info("Producto desactivado: id={}, nombre={}", id, producto.getNombre());
+    }
+
     @Transactional(readOnly = true)
     public Page<ProductoRespuestaDTO> listarTodos(Pageable pageable) {
         return productoRepositorio.listarActivos(pageable)
