@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * RF-052 al RF-069
- */
+
 @RestController
 @RequestMapping("/api/taller/ordenes")
 @RequiredArgsConstructor
@@ -26,7 +24,7 @@ public class TallerControlador {
     private final TallerServicio tallerServicio;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
+    @PreAuthorize("hasAnyRole('DUENO','MECANICO')")
     public ResponseEntity<ApiRespuesta<OTRespuestaDTO>> crear(
             @Valid @RequestBody OTCrearDTO solicitud) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -50,7 +48,7 @@ public class TallerControlador {
     }
 
     @GetMapping("/historial")
-    @PreAuthorize("hasRole('DUENO')")
+    @PreAuthorize("hasAnyRole('DUENO', 'MECANICO')")
     public ResponseEntity<ApiRespuesta<Page<OTRespuestaDTO>>> listarTodas(
             @PageableDefault(size = 20) Pageable pageable) {
         return ResponseEntity.ok(

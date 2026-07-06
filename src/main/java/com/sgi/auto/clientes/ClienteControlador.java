@@ -1,9 +1,9 @@
 package com.sgi.auto.clientes;
 
-import com.sgi.auto.compartido.ApiRespuesta;
 import com.sgi.auto.clientes.dto.ClienteActualizarDTO;
 import com.sgi.auto.clientes.dto.ClienteCrearDTO;
 import com.sgi.auto.clientes.dto.ClienteRespuestaDTO;
+import com.sgi.auto.compartido.ApiRespuesta;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,12 +19,12 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/clientes")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('DUENO','CAJERA')")
 public class ClienteControlador {
 
     private final ClienteServicio clienteServicio;
 
     @PostMapping
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
     public ResponseEntity<ApiRespuesta<ClienteRespuestaDTO>> crear(
             @Valid @RequestBody ClienteCrearDTO solicitud) {
         return ResponseEntity
@@ -35,14 +35,15 @@ public class ClienteControlador {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<Page<ClienteRespuestaDTO>>> listar(
-            @PageableDefault(size = 20, sort = "nombreCompleto")
-            Pageable pageable) {
+            @PageableDefault(size = 20, sort = "nombreCompleto") Pageable pageable) {
         return ResponseEntity.ok(
                 ApiRespuesta.exitoso(clienteServicio.listarTodos(pageable)));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<ClienteRespuestaDTO>> obtenerPorId(
             @PathVariable Long id) {
         return ResponseEntity.ok(
@@ -50,6 +51,7 @@ public class ClienteControlador {
     }
 
     @GetMapping("/buscar")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<List<ClienteRespuestaDTO>>> buscar(
             @RequestParam String q) {
         return ResponseEntity.ok(
@@ -57,6 +59,7 @@ public class ClienteControlador {
     }
 
     @GetMapping("/identificacion/{numero}")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA','MECANICO')")
     public ResponseEntity<ApiRespuesta<ClienteRespuestaDTO>> obtenerPorIdentificacion(
             @PathVariable String numero) {
         return ResponseEntity.ok(
@@ -65,6 +68,7 @@ public class ClienteControlador {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
     public ResponseEntity<ApiRespuesta<ClienteRespuestaDTO>> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody ClienteActualizarDTO solicitud) {
