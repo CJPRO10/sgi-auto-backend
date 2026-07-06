@@ -2,10 +2,8 @@ package com.sgi.auto.usuarios;
 
 import com.sgi.auto.compartido.ConflictoExcepcion;
 import com.sgi.auto.compartido.RecursoNoEncontradoExcepcion;
-import com.sgi.auto.usuarios.dto.PermisosActualizarDTO;
-import com.sgi.auto.usuarios.dto.UsuarioCrearDTO;
-import com.sgi.auto.usuarios.dto.UsuarioMapper;
-import com.sgi.auto.usuarios.dto.UsuarioRespuestaDTO;
+import com.sgi.auto.compartido.ReglaNegocioExcepcion;
+import com.sgi.auto.usuarios.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -57,6 +55,17 @@ public class UsuarioServicio {
                 guardado.getNombreUsuario(), guardado.getRol());
 
         return usuarioMapper.aDTO(guardado);
+    }
+
+    @Transactional
+    public void cambiarContrasena(Long id, CambiarContrasenaDTO solicitud) {
+        Usuario usuario = buscarOLanzar(id);
+        if (!codificadorContrasena.matches(solicitud.contrasenaActual(), usuario.getContrasenaHash())) {
+            throw new ReglaNegocioExcepcion("La contraseña actual es incorrecta");
+        }
+        usuario.setContrasenaHash(codificadorContrasena.encode(solicitud.contrasenaNueva()));
+        usuarioRepositorio.save(usuario);
+        log.info("Contraseña actualizada: nombreUsuario={}", usuario.getNombreUsuario());
     }
 
     /**

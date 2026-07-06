@@ -1,6 +1,7 @@
 package com.sgi.auto.usuarios;
 
 import com.sgi.auto.compartido.ApiRespuesta;
+import com.sgi.auto.usuarios.dto.CambiarContrasenaDTO;
 import com.sgi.auto.usuarios.dto.PermisosActualizarDTO;
 import com.sgi.auto.usuarios.dto.UsuarioCrearDTO;
 import com.sgi.auto.usuarios.dto.UsuarioRespuestaDTO;
@@ -38,6 +39,15 @@ public class UsuarioControlador {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiRespuesta.exitoso(creado, "Usuario creado correctamente"));
+    }
+
+    @PatchMapping("/{id}/contrasena")
+    @PreAuthorize("hasRole('DUENO') or #id == authentication.principal.id")
+    public ResponseEntity<ApiRespuesta<Void>> cambiarContrasena(
+            @PathVariable Long id,
+            @Valid @RequestBody CambiarContrasenaDTO solicitud) {
+        usuarioServicio.cambiarContrasena(id, solicitud);
+        return ResponseEntity.ok(ApiRespuesta.exitoso(null, "Contraseña actualizada correctamente"));
     }
 
     /**
