@@ -6,8 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.util.List;
 
-public record EntradaMercanciaDTO(
-
+public record EntradaMercanciaCrearDTO(
         Long proveedorId,
         String numeroFacturaProveedor,
         String notas,
@@ -19,6 +18,6 @@ public record EntradaMercanciaDTO(
             @NotNull Long productoId,
             @Min(1) int cantidad,
             @NotNull BigDecimal costoUnitarioConIva,
-            @NotNull BigDecimal costoUnitarioSinIva
+            BigDecimal costoUnitarioSinIva
     ) {}
 }
