@@ -37,7 +37,7 @@ public class ProductoServicio {
     private final MovimientoStockRepositorio movimientoStockRepositorio;
     private final CategoriaRepositorio categoriaRepositorio;
     private final ProveedorRepositorio proveedorRepositorio;
-    private final EntradaMercanciaRepositorio entradaMercanciaRepositorio;
+    //private final EntradaMercanciaRepositorio entradaMercanciaRepositorio;
     private final ProductoMapper productoMapper;
 
     // ── Productos ────────────────────────────────────────────────
@@ -125,7 +125,7 @@ public class ProductoServicio {
                 .toList();
     }
 
-    // ── Entrada de Mercancía ─────────────────────────
+    /* ── Entrada de Mercancía ─────────────────────────
 
     @Transactional
     public void registrarEntrada(EntradaMercanciaDTO solicitud) {
@@ -177,7 +177,7 @@ public class ProductoServicio {
         entradaMercanciaRepositorio.save(entrada);
         log.info("Entrada de mercancía registrada: {} items, total={}",
                 solicitud.items().size(), costoTotal);
-    }
+    }*/
 
     // ── Ajuste Manual de Inventario ──────────────────
 

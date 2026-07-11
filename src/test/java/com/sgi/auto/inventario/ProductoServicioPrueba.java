@@ -28,7 +28,6 @@ class ProductoServicioPrueba {
     @Mock MovimientoStockRepositorio movimientoStockRepositorio;
     @Mock CategoriaRepositorio categoriaRepositorio;
     @Mock ProveedorRepositorio proveedorRepositorio;
-    @Mock EntradaMercanciaRepositorio entradaMercanciaRepositorio;
     @Mock ProductoMapper productoMapper;
 
     @InjectMocks ProductoServicio productoServicio;
@@ -134,28 +133,6 @@ class ProductoServicioPrueba {
 
         verify(productoRepositorio, never()).save(any());
         verify(movimientoStockRepositorio, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Entrada de mercancía actualiza stock y registra movimiento")
-    void registrarEntrada_itemValido_actualizaStockYRegistraMovimiento() {
-        when(productoRepositorio.findById(1L)).thenReturn(Optional.of(productoPrueba));
-        when(productoRepositorio.save(any())).thenReturn(productoPrueba);
-        when(movimientoStockRepositorio.save(any())).thenReturn(new MovimientoStock());
-        when(entradaMercanciaRepositorio.save(any())).thenReturn(new EntradaMercancia());
-
-        EntradaMercanciaDTO entrada = new EntradaMercanciaDTO(
-                null, "FAC-001", "Entrada de prueba",
-                List.of(new EntradaMercanciaDTO.ItemEntradaDTO(
-                        1L, 20,
-                        new BigDecimal("50000"),
-                        new BigDecimal("43103"))));
-
-        productoServicio.registrarEntrada(entrada);
-
-        assertThat(productoPrueba.getStockActual()).isEqualTo(30);
-        verify(movimientoStockRepositorio).save(any(MovimientoStock.class));
-        verify(entradaMercanciaRepositorio).save(any(EntradaMercancia.class));
     }
 
     @Test
