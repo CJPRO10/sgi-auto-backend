@@ -1,0 +1,36 @@
+package com.sgi.auto.inventario;
+
+import com.sgi.auto.usuarios.Usuario;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
+@Entity
+@Table(name = "pagos_credito_proveedor")
+@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+public class PagoCreditoProveedor {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "credito_id", nullable = false)
+    private CreditoProveedor credito;
+
+    @Column(name = "monto_cop", nullable = false, precision = 14, scale = 2)
+    private BigDecimal montoCop;
+
+    @Column(name = "notas")
+    private String notas;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registrado_por")
+    private Usuario registradoPor;
+
+    @Column(name = "creado_en", nullable = false, updatable = false)
+    @Builder.Default
+    private OffsetDateTime creadoEn = OffsetDateTime.now();
+}
