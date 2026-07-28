@@ -177,12 +177,18 @@ public class CajaServicio {
             String descripcion,
             Long ventaId) {
 
+        String nombreUsuario = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuarioActual = usuarioRepositorio
+                .buscarPorNombreUsuario(nombreUsuario).orElse(null);
+
         movimientoCajaRepositorio.save(MovimientoCaja.builder()
                 .sesion(sesion)
                 .tipo(tipo)
                 .montoCop(monto)
                 .descripcion(descripcion)
                 .ventaId(ventaId)
+                .registradoPor(usuarioActual)
                 .build());
     }
 
@@ -214,6 +220,9 @@ public class CajaServicio {
                         .map(m -> new SesionCajaRespuestaDTO.MovimientoRespuestaDTO(
                                 m.getId(), m.getTipo(),
                                 m.getMontoCop(), m.getDescripcion(),
+                                m.getRegistradoPor() != null
+                                        ? m.getRegistradoPor().getNombreCompleto()
+                                        : null,
                                 m.getCreadoEn()))
                         .toList();
 
