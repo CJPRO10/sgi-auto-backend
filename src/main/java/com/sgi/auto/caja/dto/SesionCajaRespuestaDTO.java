@@ -30,6 +30,7 @@ public record SesionCajaRespuestaDTO(
             TipoMovimientoCaja tipo,
             BigDecimal montoCop,
             String descripcion,
+            String registradoPor,
             OffsetDateTime creadoEn
     ) {}
 }
