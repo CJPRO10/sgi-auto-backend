@@ -1,5 +1,6 @@
 package com.sgi.auto.reportes;
 
+import com.sgi.auto.caja.SesionCaja;
 import com.sgi.auto.caja.SesionCajaRepositorio;
 import com.sgi.auto.clientes.CreditoRepositorio;
 import com.sgi.auto.inventario.ProductoRepositorio;
@@ -219,21 +220,40 @@ public class DashboardServicio {
     // ── RF-100 — Resumen de caja ──────────────────────
 
     private DashboardDTO.ResumenCajaDTO calcularResumenCaja() {
-        return sesionCajaRepositorio.buscarSesionAbierta()
-                .map(s -> {
-                    BigDecimal saldoEsperado = s.getSaldoInicialCop()
-                            .add(s.getTotalVentasCop())
-                            .add(s.getTotalAbonosCreditoCop())
-                            .subtract(s.getTotalGastosCop());
-                    return new DashboardDTO.ResumenCajaDTO(
-                            true,
-                            s.getSaldoInicialCop(),
-                            s.getTotalVentasCop(),
-                            s.getTotalGastosCop(),
-                            saldoEsperado);
-                })
-                .orElse(new DashboardDTO.ResumenCajaDTO(
-                        false, BigDecimal.ZERO, BigDecimal.ZERO,
-                        BigDecimal.ZERO, BigDecimal.ZERO));
+        List<SesionCaja> sesionesAbiertas = sesionCajaRepositorio.listarSesionesAbiertas();
+
+        if (sesionesAbiertas.isEmpty()) {
+            return new DashboardDTO.ResumenCajaDTO(
+                    false, BigDecimal.ZERO, BigDecimal.ZERO,
+                    BigDecimal.ZERO, BigDecimal.ZERO);
+        }
+
+        BigDecimal totalVentas = sesionesAbiertas.stream()
+                .map(SesionCaja::getTotalVentasCop)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalGastos = sesionesAbiertas.stream()
+                .map(SesionCaja::getTotalGastosCop)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalAbonos = sesionesAbiertas.stream()
+                .map(SesionCaja::getTotalAbonosCreditoCop)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal saldoInicial = sesionesAbiertas.stream()
+                .map(SesionCaja::getSaldoInicialCop)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal saldoEsperado = saldoInicial
+                .add(totalVentas)
+                .add(totalAbonos)
+                .subtract(totalGastos);
+
+        return new DashboardDTO.ResumenCajaDTO(
+                true,
+                saldoInicial,
+                totalVentas,
+                totalGastos,
+                saldoEsperado);
     }
 }
