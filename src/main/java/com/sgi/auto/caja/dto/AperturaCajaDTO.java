@@ -7,5 +7,6 @@ import java.math.BigDecimal;
 public record AperturaCajaDTO(
         @NotNull(message = "El saldo inicial es obligatorio")
         @DecimalMin(value = "0.0", message = "El saldo inicial no puede ser negativo")
-        BigDecimal saldoInicialCop
+        BigDecimal saldoInicialCop,
+        Long cajeraId
 ) {}

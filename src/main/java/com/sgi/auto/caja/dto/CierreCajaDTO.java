@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 
 public record CierreCajaDTO(
+        @NotNull Long sesionId,
         @NotNull(message = "El saldo final contado es obligatorio")
         @DecimalMin(value = "0.0")
         BigDecimal saldoFinalContadoCop,

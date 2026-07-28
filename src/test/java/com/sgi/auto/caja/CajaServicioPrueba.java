@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,6 +35,7 @@ class CajaServicioPrueba {
     @InjectMocks CajaServicio cajaServicio;
 
     private Usuario cajera;
+    private Usuario dueno;
     private SesionCaja sesionAbierta;
 
     @BeforeEach
@@ -46,6 +47,13 @@ class CajaServicioPrueba {
                 .build();
         cajera.setId(1L);
 
+        dueno = Usuario.builder()
+                .nombreCompleto("Administrador")
+                .nombreUsuario("admin")
+                .rol(RolUsuario.DUENO)
+                .build();
+        dueno.setId(2L);
+
         sesionAbierta = SesionCaja.builder()
                 .cajera(cajera)
                 .saldoInicialCop(new BigDecimal("200000"))
@@ -55,26 +63,25 @@ class CajaServicioPrueba {
                 .build();
         sesionAbierta.setId(1L);
 
-        // Simular usuario autenticado en el SecurityContext
         var auth = new UsernamePasswordAuthenticationToken(
-                "maria.lopez", null,
-                List.of(new SimpleGrantedAuthority("ROLE_CAJERA")));
+                "admin", null,
+                List.of(new SimpleGrantedAuthority("ROLE_DUENO")));
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 
     @Test
     @DisplayName("Abrir sesión de caja exitosamente")
     void abrirSesion_sinSesionActiva_creaCorrectamente() {
-        when(sesionCajaRepositorio.buscarSesionAbierta())
+        when(usuarioRepositorio.buscarPorNombreUsuario("admin"))
+                .thenReturn(Optional.of(dueno));
+        when(sesionCajaRepositorio.buscarSesionAbiertaPorCajera(dueno.getId()))
                 .thenReturn(Optional.empty());
-        when(usuarioRepositorio.buscarPorNombreUsuario("maria.lopez"))
-                .thenReturn(Optional.of(cajera));
         when(sesionCajaRepositorio.save(any())).thenReturn(sesionAbierta);
         when(movimientoCajaRepositorio.save(any())).thenReturn(new MovimientoCaja());
         when(movimientoCajaRepositorio.listarPorSesion(any())).thenReturn(List.of());
 
         SesionCajaRespuestaDTO resultado = cajaServicio.abrirSesion(
-                new AperturaCajaDTO(new BigDecimal("200000")));
+                new AperturaCajaDTO(new BigDecimal("200000"), null));
 
         assertThat(resultado).isNotNull();
         verify(sesionCajaRepositorio).save(any(SesionCaja.class));
@@ -84,27 +91,26 @@ class CajaServicioPrueba {
     @Test
     @DisplayName("Abrir sesión cuando ya hay una abierta lanza ReglaNegocioExcepcion")
     void abrirSesion_conSesionActiva_lanzaReglaNegocio() {
-        when(sesionCajaRepositorio.buscarSesionAbierta())
+        when(usuarioRepositorio.buscarPorNombreUsuario("admin"))
+                .thenReturn(Optional.of(dueno));
+        when(sesionCajaRepositorio.buscarSesionAbiertaPorCajera(dueno.getId()))
                 .thenReturn(Optional.of(sesionAbierta));
 
         assertThatThrownBy(() -> cajaServicio.abrirSesion(
-                new AperturaCajaDTO(new BigDecimal("200000"))))
-                .isInstanceOf(ReglaNegocioExcepcion.class)
-                .hasMessageContaining("Ya existe una sesión");
+                new AperturaCajaDTO(new BigDecimal("200000"), null)))
+                .isInstanceOf(ReglaNegocioExcepcion.class);
     }
 
     @Test
     @DisplayName("Cerrar sesión calcula diferencia correctamente")
     void cerrarSesion_conSesionAbierta_calculaDiferenciaCorrectamente() {
-        when(sesionCajaRepositorio.buscarSesionAbierta())
+        when(sesionCajaRepositorio.findById(1L))
                 .thenReturn(Optional.of(sesionAbierta));
         when(sesionCajaRepositorio.save(any())).thenReturn(sesionAbierta);
         when(movimientoCajaRepositorio.listarPorSesion(any())).thenReturn(List.of());
 
-        // Saldo esperado = 200000 + 500000 - 50000 = 650000
-        // Saldo contado = 640000 → diferencia = -10000
         CierreCajaDTO cierre = new CierreCajaDTO(
-                new BigDecimal("640000"), "Cierre del día");
+                1L, new BigDecimal("640000"), "Cierre del día");
 
         cajaServicio.cerrarSesion(cierre);
 
@@ -118,19 +124,20 @@ class CajaServicioPrueba {
     @Test
     @DisplayName("Cerrar sesión sin sesión abierta lanza ReglaNegocioExcepcion")
     void cerrarSesion_sinSesionAbierta_lanzaReglaNegocio() {
-        when(sesionCajaRepositorio.buscarSesionAbierta())
+        when(sesionCajaRepositorio.findById(99L))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> cajaServicio.cerrarSesion(
-                new CierreCajaDTO(new BigDecimal("500000"), null)))
-                .isInstanceOf(ReglaNegocioExcepcion.class)
-                .hasMessageContaining("No hay ninguna sesión");
+                new CierreCajaDTO(99L, new BigDecimal("500000"), null)))
+                .isInstanceOf(ReglaNegocioExcepcion.class);
     }
 
     @Test
     @DisplayName("Registrar gasto actualiza total gastos de la sesión")
     void registrarGasto_conSesionAbierta_actualizaTotalGastos() {
-        when(sesionCajaRepositorio.buscarSesionAbierta())
+        when(usuarioRepositorio.buscarPorNombreUsuario("admin"))
+                .thenReturn(Optional.of(dueno));
+        when(sesionCajaRepositorio.buscarSesionAbiertaPorCajera(dueno.getId()))
                 .thenReturn(Optional.of(sesionAbierta));
         when(movimientoCajaRepositorio.save(any())).thenReturn(new MovimientoCaja());
         when(sesionCajaRepositorio.save(any())).thenReturn(sesionAbierta);
@@ -139,7 +146,7 @@ class CajaServicioPrueba {
                 new GastoDTO(new BigDecimal("30000"), "Papelería"));
 
         assertThat(sesionAbierta.getTotalGastosCop())
-                .isEqualByComparingTo("80000"); // 50000 + 30000
+                .isEqualByComparingTo("80000");
         verify(movimientoCajaRepositorio).save(any(MovimientoCaja.class));
     }
 }

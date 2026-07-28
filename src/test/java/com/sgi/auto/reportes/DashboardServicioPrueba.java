@@ -14,6 +14,7 @@ import com.sgi.auto.reportes.dto.DashboardDTO;
 import com.sgi.auto.taller.EstadoOT;
 import com.sgi.auto.taller.OrdenDeTrabajo;
 import com.sgi.auto.taller.OrdenDeTrabajoRepositorio;
+import com.sgi.auto.usuarios.UsuarioRepositorio;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,6 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -40,6 +40,7 @@ class DashboardServicioPrueba {
     @Mock OrdenDeTrabajoRepositorio otRepositorio;
     @Mock CreditoRepositorio creditoRepositorio;
     @Mock SesionCajaRepositorio sesionCajaRepositorio;
+    @Mock UsuarioRepositorio usuarioRepositorio;
 
     @InjectMocks DashboardServicio dashboardServicio;
 
@@ -84,6 +85,10 @@ class DashboardServicioPrueba {
         creditoPrueba.setId(1L);
     }
 
+    private void mockearCajaVacia() {
+        when(sesionCajaRepositorio.listarSesionesAbiertas()).thenReturn(List.of());
+    }
+
     @Test
     @DisplayName("Dashboard retorna resumen del día correctamente")
     void obtenerDashboard_conDatos_retornaResumenDia() {
@@ -91,7 +96,7 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of(productoPrueba));
         when(otRepositorio.findAll()).thenReturn(List.of(otPrueba));
         when(creditoRepositorio.findAll()).thenReturn(List.of(creditoPrueba));
-        when(sesionCajaRepositorio.buscarSesionAbierta()).thenReturn(Optional.empty());
+        mockearCajaVacia();
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
@@ -111,7 +116,7 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of(productoPrueba));
         when(otRepositorio.findAll()).thenReturn(List.of());
         when(creditoRepositorio.findAll()).thenReturn(List.of());
-        when(sesionCajaRepositorio.buscarSesionAbierta()).thenReturn(Optional.empty());
+        mockearCajaVacia();
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
@@ -126,7 +131,7 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of());
         when(otRepositorio.findAll()).thenReturn(List.of(otPrueba));
         when(creditoRepositorio.findAll()).thenReturn(List.of());
-        when(sesionCajaRepositorio.buscarSesionAbierta()).thenReturn(Optional.empty());
+        mockearCajaVacia();
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
@@ -142,7 +147,7 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of());
         when(otRepositorio.findAll()).thenReturn(List.of());
         when(creditoRepositorio.findAll()).thenReturn(List.of(creditoPrueba));
-        when(sesionCajaRepositorio.buscarSesionAbierta()).thenReturn(Optional.empty());
+        mockearCajaVacia();
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
@@ -167,8 +172,8 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of());
         when(otRepositorio.findAll()).thenReturn(List.of());
         when(creditoRepositorio.findAll()).thenReturn(List.of());
-        when(sesionCajaRepositorio.buscarSesionAbierta())
-                .thenReturn(Optional.of(sesion));
+        when(sesionCajaRepositorio.listarSesionesAbiertas())
+                .thenReturn(List.of(sesion));
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
@@ -184,8 +189,7 @@ class DashboardServicioPrueba {
         when(productoRepositorio.findAll()).thenReturn(List.of());
         when(otRepositorio.findAll()).thenReturn(List.of());
         when(creditoRepositorio.findAll()).thenReturn(List.of());
-        when(sesionCajaRepositorio.buscarSesionAbierta())
-                .thenReturn(Optional.empty());
+        mockearCajaVacia();
 
         DashboardDTO resultado = dashboardServicio.obtenerDashboard();
 
