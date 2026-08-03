@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,4 +27,26 @@ public interface SesionCajaRepositorio extends JpaRepository<SesionCaja, Long> {
     // Sesiones de una cajera específica
     @Query("SELECT s FROM SesionCaja s WHERE s.cajera.id = :cajeraId ORDER BY s.abiertaEn DESC")
     Page<SesionCaja> listarPorCajera(@Param("cajeraId") Long cajeraId, Pageable pageable);
+
+    @Query(value = """
+        SELECT * FROM sesiones_caja
+        WHERE esta_abierta = false
+        AND (:cajeraId IS NULL OR abierta_por = :cajeraId)
+        AND (:desde IS NULL OR cerrada_en >= CAST(:desde AS timestamptz))
+        AND (:hasta IS NULL OR cerrada_en <= CAST(:hasta AS timestamptz))
+        ORDER BY cerrada_en DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM sesiones_caja
+        WHERE esta_abierta = false
+        AND (:cajeraId IS NULL OR abierta_por = :cajeraId)
+        AND (:desde IS NULL OR cerrada_en >= CAST(:desde AS timestamptz))
+        AND (:hasta IS NULL OR cerrada_en <= CAST(:hasta AS timestamptz))
+        """,
+            nativeQuery = true)
+    Page<SesionCaja> listarHistorialFiltrado(
+            @Param("cajeraId") Long cajeraId,
+            @Param("desde") String desde,
+            @Param("hasta") String hasta,
+            Pageable pageable);
 }

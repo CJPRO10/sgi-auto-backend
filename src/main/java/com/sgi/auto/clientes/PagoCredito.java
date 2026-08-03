@@ -30,6 +30,9 @@ public class PagoCredito {
     @Column(name = "notas")
     private String notas;
 
+    @Column(name = "metodo_pago", length = 20)
+    private String metodoPago;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "registrado_por")
     private Usuario registradoPor;

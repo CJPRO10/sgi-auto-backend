@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 
 /**
@@ -101,6 +103,18 @@ public class CajaServicio {
         log.info("Sesión cerrada: id={}, cajera={}, diferencia={}",
                 cerrada.getId(), cerrada.getCajera().getNombreCompleto(), diferencia);
         return aDTO(cerrada);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<SesionCajaRespuestaDTO> listarHistorialFiltrado(
+            Long cajeraId, LocalDate desde, LocalDate hasta, Pageable pageable) {
+        String desdeStr = desde != null
+                ? desde.atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString() : null;
+        String hastaStr = hasta != null
+                ? hasta.plusDays(1).atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString() : null;
+        return sesionCajaRepositorio
+                .listarHistorialFiltrado(cajeraId, desdeStr, hastaStr, pageable)
+                .map(this::aDTO);
     }
 
     @Transactional(readOnly = true)

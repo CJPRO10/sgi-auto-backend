@@ -51,7 +51,6 @@ public class VentaServicio {
     @Transactional
     public VentaRespuestaDTO crear(VentaCrearDTO solicitud) {
 
-        // Idempotencia
         var ventaExistente = ventaRepositorio
                 .findByClaveIdempotencia(solicitud.claveIdempotencia());
         if (ventaExistente.isPresent()) {
@@ -146,7 +145,6 @@ public class VentaServicio {
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
         venta.setTotalCop(total);
 
-        // Desglose de montos por método de pago
         BigDecimal montoEfectivo = solicitud.montoEfectivoCop() != null
                 ? solicitud.montoEfectivoCop() : BigDecimal.ZERO;
         BigDecimal montoTransferencia = solicitud.montoTransferenciaCop() != null
@@ -183,8 +181,7 @@ public class VentaServicio {
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
         final BigDecimal totalFinal = total;
-        cajaServicio.registrarIngresoPorVenta(
-                totalFinal, guardada.getId(),
+        cajaServicio.registrarIngresoPorVenta(totalFinal, guardada.getId(),
                 montoEfectivo, montoTransferencia, montoCredito);
 
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
@@ -194,6 +191,11 @@ public class VentaServicio {
                                 credito.setMontoTotalCop(
                                         credito.getMontoTotalCop().add(totalFinal));
                                 creditoRepositorio.save(credito);
+                                // Actualizar saldo en cliente
+                                venta.getCliente().setCupoCreditoCop(credito.getMontoTotalCop());
+                                venta.getCliente().setSaldoCreditoCop(
+                                        credito.getMontoTotalCop().subtract(credito.getMontoPagadoCop()));
+                                clienteRepositorio.save(venta.getCliente());
                             },
                             () -> {
                                 Credito nuevoCredito = Credito.builder()
@@ -203,11 +205,13 @@ public class VentaServicio {
                                         .build();
                                 venta.getCliente().setCreditoHabilitado(true);
                                 venta.getCliente().setCupoCreditoCop(totalFinal);
+                                venta.getCliente().setSaldoCreditoCop(totalFinal);
                                 clienteRepositorio.save(venta.getCliente());
                                 creditoRepositorio.save(nuevoCredito);
                             }
                     );
         }
+
         return aDTO(guardada);
     }
 
