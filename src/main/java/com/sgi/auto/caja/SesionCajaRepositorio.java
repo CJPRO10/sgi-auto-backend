@@ -28,14 +28,25 @@ public interface SesionCajaRepositorio extends JpaRepository<SesionCaja, Long> {
     @Query("SELECT s FROM SesionCaja s WHERE s.cajera.id = :cajeraId ORDER BY s.abiertaEn DESC")
     Page<SesionCaja> listarPorCajera(@Param("cajeraId") Long cajeraId, Pageable pageable);
 
-    @Query("SELECT s FROM SesionCaja s WHERE s.estaAbierta = false " +
-            "AND (:cajeraId IS NULL OR s.cajera.id = :cajeraId) " +
-            "AND (:desde IS NULL OR s.cerradaEn >= :desde) " +
-            "AND (:hasta IS NULL OR s.cerradaEn <= :hasta) " +
-            "ORDER BY s.cerradaEn DESC")
+    @Query(value = """
+        SELECT * FROM sesiones_caja
+        WHERE esta_abierta = false
+        AND (:cajeraId IS NULL OR abierta_por = :cajeraId)
+        AND (:desde IS NULL OR cerrada_en >= CAST(:desde AS timestamptz))
+        AND (:hasta IS NULL OR cerrada_en <= CAST(:hasta AS timestamptz))
+        ORDER BY cerrada_en DESC
+        """,
+            countQuery = """
+        SELECT COUNT(*) FROM sesiones_caja
+        WHERE esta_abierta = false
+        AND (:cajeraId IS NULL OR abierta_por = :cajeraId)
+        AND (:desde IS NULL OR cerrada_en >= CAST(:desde AS timestamptz))
+        AND (:hasta IS NULL OR cerrada_en <= CAST(:hasta AS timestamptz))
+        """,
+            nativeQuery = true)
     Page<SesionCaja> listarHistorialFiltrado(
             @Param("cajeraId") Long cajeraId,
-            @Param("desde") OffsetDateTime desde,
-            @Param("hasta") OffsetDateTime hasta,
+            @Param("desde") String desde,
+            @Param("hasta") String hasta,
             Pageable pageable);
 }

@@ -108,12 +108,12 @@ public class CajaServicio {
     @Transactional(readOnly = true)
     public Page<SesionCajaRespuestaDTO> listarHistorialFiltrado(
             Long cajeraId, LocalDate desde, LocalDate hasta, Pageable pageable) {
-        OffsetDateTime desdedt = desde != null
-                ? desde.atStartOfDay().atOffset(ZoneOffset.of("-05:00")) : null;
-        OffsetDateTime hastaDt = hasta != null
-                ? hasta.plusDays(1).atStartOfDay().atOffset(ZoneOffset.of("-05:00")) : null;
+        String desdeStr = desde != null
+                ? desde.atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString() : null;
+        String hastaStr = hasta != null
+                ? hasta.plusDays(1).atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString() : null;
         return sesionCajaRepositorio
-                .listarHistorialFiltrado(cajeraId, desdedt, hastaDt, pageable)
+                .listarHistorialFiltrado(cajeraId, desdeStr, hastaStr, pageable)
                 .map(this::aDTO);
     }
 
