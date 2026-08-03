@@ -8,5 +8,6 @@ public record PagoCreditoDTO(
         @NotNull
         @DecimalMin(value = "0.01")
         BigDecimal montoCop,
-        String notas
+        String notas,
+        @NotNull String metodoPago
 ) {}
