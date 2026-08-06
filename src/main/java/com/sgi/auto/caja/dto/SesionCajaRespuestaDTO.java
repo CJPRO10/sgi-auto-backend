@@ -31,6 +31,7 @@ public record SesionCajaRespuestaDTO(
             BigDecimal montoCop,
             String descripcion,
             String registradoPor,
+            Long ventaId,
             OffsetDateTime creadoEn
     ) {}
 }
