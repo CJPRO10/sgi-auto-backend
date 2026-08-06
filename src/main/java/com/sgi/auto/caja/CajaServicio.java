@@ -276,8 +276,8 @@ public class CajaServicio {
                                 m.getId(), m.getTipo(),
                                 m.getMontoCop(), m.getDescripcion(),
                                 m.getRegistradoPor() != null
-                                        ? m.getRegistradoPor().getNombreCompleto()
-                                        : null,
+                                        ? m.getRegistradoPor().getNombreCompleto() : null,
+                                m.getVentaId(),
                                 m.getCreadoEn()))
                         .toList();
 
