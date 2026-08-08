@@ -2,6 +2,7 @@ package com.sgi.auto.inventario;
 
 import com.sgi.auto.compartido.ApiRespuesta;
 import com.sgi.auto.inventario.dto.AjusteStockDTO;
+import com.sgi.auto.inventario.dto.KardexRespuestaDTO;
 import com.sgi.auto.inventario.dto.ProductoCrearDTO;
 import com.sgi.auto.inventario.dto.ProductoRespuestaDTO;
 import jakarta.validation.Valid;
@@ -86,5 +87,14 @@ public class ProductoControlador {
                 ApiRespuesta.exitoso(
                         productoServicio.ajustarStock(id, solicitud),
                         "Stock ajustado correctamente"));
+    }
+
+    @GetMapping("/{id}/kardex")
+    @PreAuthorize("hasAnyRole('DUENO','CAJERA')")
+    public ResponseEntity<ApiRespuesta<Page<KardexRespuestaDTO>>> kardex(
+            @PathVariable Long id,
+            @PageableDefault(size = 20) Pageable pageable) {
+        return ResponseEntity.ok(
+                ApiRespuesta.exitoso(productoServicio.obtenerKardex(id, pageable)));
     }
 }
