@@ -18,6 +18,7 @@ public record VentaRespuestaDTO(
         BigDecimal totalCop,
         BigDecimal montoPagadoCop,
         BigDecimal vueltoCop,
+        String razonAnulacion,
         int puntosGanados,
         List<ItemVentaRespuestaDTO> items,
         OffsetDateTime creadoEn

@@ -1,6 +1,6 @@
 package com.sgi.auto.pos;
 
-import com.sgi.auto.caja.CajaServicio;
+import com.sgi.auto.caja.*;
 import com.sgi.auto.clientes.Cliente;
 import com.sgi.auto.clientes.ClienteRepositorio;
 import com.sgi.auto.clientes.CreditoRepositorio;
@@ -16,13 +16,15 @@ import com.sgi.auto.inventario.TipoMovimientoStock;
 import com.sgi.auto.pos.dto.AnulacionDTO;
 import com.sgi.auto.pos.dto.VentaCrearDTO;
 import com.sgi.auto.pos.dto.VentaRespuestaDTO;
+import com.sgi.auto.usuarios.Usuario;
+import com.sgi.auto.usuarios.UsuarioRepositorio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -44,6 +46,10 @@ public class VentaServicio {
     private final ClienteRepositorio clienteRepositorio;
     private final CajaServicio cajaServicio;
     private final CreditoRepositorio creditoRepositorio;
+    private final SesionCajaRepositorio sesionCajaRepositorio;
+    private final UsuarioRepositorio usuarioRepositorio;
+    private final MovimientoCajaRepositorio movimientoCajaRepositorio;
+
 
     // Regla de negocio: cada COP gastado = 1 punto
     private static final BigDecimal FACTOR_PUNTOS = BigDecimal.ONE;
@@ -252,6 +258,45 @@ public class VentaServicio {
             clienteRepositorio.save(cliente);
         }
 
+        // Registrar egreso en caja por devolución
+        String nombreUsuario = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuario = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                .orElse(null);
+
+        if (usuario != null) {
+            sesionCajaRepositorio.buscarSesionAbiertaPorCajera(usuario.getId())
+                    .ifPresent(sesion -> {
+                        // Descontar del total de ventas
+                        sesion.setTotalVentasCop(
+                                sesion.getTotalVentasCop().subtract(venta.getTotalCop())
+                                        .max(BigDecimal.ZERO));
+
+                        // Descontar del desglose por método
+                        sesion.setTotalEfectivoCop(
+                                sesion.getTotalEfectivoCop().subtract(venta.getMontoPagadoCop())
+                                        .max(BigDecimal.ZERO));
+                        sesion.setTotalTransferenciaCop(
+                                sesion.getTotalTransferenciaCop().subtract(venta.getMontoTransferenciaCop())
+                                        .max(BigDecimal.ZERO));
+                        sesion.setTotalCreditoCop(
+                                sesion.getTotalCreditoCop().subtract(venta.getMontoCreditoCop())
+                                        .max(BigDecimal.ZERO));
+
+                        // Registrar movimiento de egreso
+                        movimientoCajaRepositorio.save(MovimientoCaja.builder()
+                                .sesion(sesion)
+                                .tipo(TipoMovimientoCaja.EGRESO_DUENO)
+                                .montoCop(venta.getTotalCop())
+                                .descripcion("Anulación venta #" + ventaId + " - " + solicitud.razon())
+                                .ventaId(ventaId)
+                                .registradoPor(usuario)
+                                .build());
+
+                        sesionCajaRepositorio.save(sesion);
+                    });
+        }
+
         venta.setEstado(EstadoVenta.ANULADA);
         venta.setRazonAnulacion(solicitud.razon());
         venta.setAnuladaEn(OffsetDateTime.now());
@@ -314,6 +359,7 @@ public class VentaServicio {
                 venta.getTotalCop(),
                 venta.getMontoPagadoCop(),
                 venta.getVueltoCop(),
+                venta.getRazonAnulacion(),
                 venta.getPuntosGanados(),
                 itemsDTO,
                 venta.getCreadoEn());
