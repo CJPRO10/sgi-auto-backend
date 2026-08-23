@@ -44,6 +44,13 @@ public class ReporteControlador {
                 reporteServicio.reporteInventario()));
     }
 
+    @GetMapping("/productos-sin-movimiento")
+    public ResponseEntity<ApiRespuesta<List<ProductoSinMovimientoDTO>>> productosSinMovimiento(
+            @RequestParam(required = false, defaultValue = "30") int dias) {
+        return ResponseEntity.ok(ApiRespuesta.exitoso(
+                reporteServicio.productosSinMovimiento(dias)));
+    }
+
     @GetMapping("/taller")
     public ResponseEntity<ApiRespuesta<List<OTReporteDTO>>> taller(
             @RequestParam(required = false)

@@ -16,10 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 // Servicio de reportes y exportaciones.
 @Slf4j
@@ -70,6 +75,50 @@ public class ReporteServicio {
                         p.getPrecioVentaDetal(), p.getPrecioVentaMayor(),
                         p.getMargenGananciaPct(),
                         p.getStockActual() <= p.getStockMinimo()))
+                .toList();
+    }
+
+    // ── Reporte de Productos Sin Movimiento ──────────
+
+    @Transactional(readOnly = true)
+    public List<ProductoSinMovimientoDTO> productosSinMovimiento(int dias) {
+        OffsetDateTime ahora = OffsetDateTime.now(ZoneOffset.of("-05:00"));
+        OffsetDateTime limite = ahora.minusDays(dias);
+
+        // Mapa productoId -> fecha del último movimiento registrado
+        Map<Long, OffsetDateTime> ultimoPorProducto = new HashMap<>();
+        for (Object[] fila : movimientoStockRepositorio.ultimoMovimientoPorProducto()) {
+            ultimoPorProducto.put((Long) fila[0], (OffsetDateTime) fila[1]);
+        }
+
+        return productoRepositorio.findAll().stream()
+                .filter(p -> p.getEliminadoEn() == null && p.isEstaActivo())
+                .filter(p -> {
+                    OffsetDateTime ultimo = ultimoPorProducto.get(p.getId());
+                    // Sin movimiento nunca, o el último fue antes del límite
+                    return ultimo == null || ultimo.isBefore(limite);
+                })
+                .map(p -> {
+                    OffsetDateTime ultimo = ultimoPorProducto.get(p.getId());
+                    Long diasSinMovimiento = ultimo != null
+                            ? ChronoUnit.DAYS.between(ultimo, ahora)
+                            : null;
+                    BigDecimal precioCompra = p.getPrecioCompraSinIva() != null
+                            ? p.getPrecioCompraSinIva() : BigDecimal.ZERO;
+                    return new ProductoSinMovimientoDTO(
+                            p.getCodigo(),
+                            p.getNombre(),
+                            p.getCategoria() != null ? p.getCategoria().getNombre() : "Sin categoría",
+                            p.getStockActual(),
+                            precioCompra,
+                            precioCompra.multiply(BigDecimal.valueOf(p.getStockActual())),
+                            ultimo,
+                            diasSinMovimiento);
+                })
+                // Los que nunca tuvieron movimiento (null) van primero, luego de mayor a menor antigüedad
+                .sorted(Comparator.comparing(
+                        ProductoSinMovimientoDTO::diasSinMovimiento,
+                        Comparator.nullsFirst(Comparator.reverseOrder())))
                 .toList();
     }
 
