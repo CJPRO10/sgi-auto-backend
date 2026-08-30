@@ -1,0 +1,73 @@
+# ─────────────────────────────────────────
+# SGI-AUTO — Configuración de la aplicación
+# ─────────────────────────────────────────
+spring:
+  application:
+    name: sgi-auto
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/sgi_auto}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate          # nunca crear/modificar tablas
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        default_schema: public
+    open-in-view: false           # evita lazy-loading fuera de transacción
+
+  jackson:
+    time-zone: America/Bogota
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+server:
+  port: ${PORT:8080}
+
+# ─────────────────────────────────────────
+# JWT
+# ─────────────────────────────────────────
+sgi:
+  jwt:
+    secreto: ${JWT_SECRET:desarrollo_local_cambiar_en_produccion_256bits_minimo}
+    expiracion-horas: ${JWT_EXPIRACION_HORAS:8}
+
+  # ─────────────────────────────────────────
+  # Cloudinary
+  # ─────────────────────────────────────────
+  cloudinary:
+    cloud-name: ${CLOUDINARY_CLOUD_NAME:local}
+    api-key: ${CLOUDINARY_API_KEY:local}
+    api-secret: ${CLOUDINARY_API_SECRET:local}
+
+  # ─────────────────────────────────────────
+  # S3 (backups)
+  # ─────────────────────────────────────────
+  s3:
+    endpoint: ${S3_ENDPOINT:http://localhost:9000}
+    bucket: ${S3_BUCKET:sgi-auto-backups}
+    access-key: ${S3_ACCESS_KEY:local}
+    secret-key: ${S3_SECRET_KEY:local}
+
+# ─────────────────────────────────────────
+# OpenAPI / Swagger
+# ─────────────────────────────────────────
+springdoc:
+  api-docs:
+    path: /api/docs
+  swagger-ui:
+    path: /api/swagger-ui
+    enabled: true
+
+# ─────────────────────────────────────────
+# Logging
+# ─────────────────────────────────────────
+logging:
+  level:
+    com.sgi.auto: INFO
+    org.hibernate.SQL: WARN
