@@ -187,7 +187,14 @@ public class VentaServicio {
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
         final BigDecimal totalFinal = total;
-        cajaServicio.registrarIngresoPorVenta(totalFinal, guardada.getId(),
+
+        String nombreUsuarioActual = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuarioActual = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuarioActual)
+                .orElse(null);
+        Long cajeraId = usuarioActual != null ? usuarioActual.getId() : null;
+
+        cajaServicio.registrarIngresoPorVenta(cajeraId, totalFinal, guardada.getId(),
                 montoEfectivo, montoTransferencia, montoCredito);
 
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {

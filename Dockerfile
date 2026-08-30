@@ -15,6 +15,12 @@ RUN mvn clean package -DskipTests -q
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
+# pg_dump es necesario para generar los backups de la base de datos.
+# Se intenta la versión específica (debe coincidir con la versión del
+# servidor Postgres, actualmente 16.x) y si el repositorio de Alpine
+# de esa imagen no la tiene disponible, cae al paquete genérico.
+RUN apk add --no-cache postgresql16-client || apk add --no-cache postgresql-client
+
 # Copiar solo el JAR generado (sin el código fuente ni Maven)
 COPY --from=build /app/target/auto-1.0.0.jar app.jar
 

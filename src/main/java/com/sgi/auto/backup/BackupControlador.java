@@ -10,9 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * RF-091 al RF-095
- */
 @RestController
 @RequestMapping("/api/backup")
 @RequiredArgsConstructor
@@ -40,5 +37,12 @@ public class BackupControlador {
             @PathVariable Long id) {
         return ResponseEntity.ok(ApiRespuesta.exitoso(
                 backupServicio.obtenerPorId(id)));
+    }
+
+    @GetMapping("/{id}/descargar")
+    public ResponseEntity<ApiRespuesta<String>> descargar(@PathVariable Long id) {
+        String url = backupServicio.generarUrlDescarga(id);
+        return ResponseEntity.ok(ApiRespuesta.exitoso(
+                url, "Enlace de descarga válido por 15 minutos"));
     }
 }
