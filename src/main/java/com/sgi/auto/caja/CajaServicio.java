@@ -7,26 +7,19 @@ import com.sgi.auto.usuarios.Usuario;
 import com.sgi.auto.usuarios.UsuarioRepositorio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
 
-/**
- * Servicio del módulo de Caja.
- * Apertura de sesión
- * Movimientos automáticos
- * Gastos operativos
- * Cierre de sesión
- * Reporte cierre
- * Historial
- * Egresos autorizados dueño
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -35,19 +28,20 @@ public class CajaServicio {
     private final SesionCajaRepositorio sesionCajaRepositorio;
     private final MovimientoCajaRepositorio movimientoCajaRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
+    private final ApplicationEventPublisher eventPublisher;
 
     // ── Sesión de Caja ────────────────────────────────────────
 
-    // Abre una nueva sesión de caja.
+    // Abre una nueva sesión de caja para el usuario actual.
     @Transactional
     public SesionCajaRespuestaDTO abrirSesion(AperturaCajaDTO solicitud) {
-        // Solo puede haber una sesión abierta a la vez
-        sesionCajaRepositorio.buscarSesionAbierta().ifPresent(s -> {
-            throw new ReglaNegocioExcepcion(
-                    "Ya existe una sesión de caja abierta. Ciérrela antes de abrir una nueva.");
-        });
-
         Usuario cajera = obtenerUsuarioActual();
+
+        // Solo puede haber una sesión abierta a la vez POR CAJERA
+        sesionCajaRepositorio.buscarSesionAbiertaPorCajera(cajera.getId()).ifPresent(s -> {
+            throw new ReglaNegocioExcepcion(
+                    "Ya tienes una sesión de caja abierta. Ciérrela antes de abrir una nueva.");
+        });
 
         SesionCaja sesion = SesionCaja.builder()
                 .cajera(cajera)
@@ -56,7 +50,6 @@ public class CajaServicio {
 
         SesionCaja guardada = sesionCajaRepositorio.save(sesion);
 
-        // Registrar movimiento de apertura
         registrarMovimiento(guardada, TipoMovimientoCaja.APERTURA,
                 solicitud.saldoInicialCop(), "Saldo inicial de apertura", null);
 
@@ -67,12 +60,14 @@ public class CajaServicio {
         return aDTO(guardada);
     }
 
-    // Cierra la sesión activa y calcula la diferencia.
+    // Cierra la sesión activa del usuario actual y calcula la diferencia.
     @Transactional
     public SesionCajaRespuestaDTO cerrarSesion(CierreCajaDTO solicitud) {
-        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbierta()
+        Usuario cajera = obtenerUsuarioActual();
+
+        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbiertaPorCajera(cajera.getId())
                 .orElseThrow(() -> new ReglaNegocioExcepcion(
-                        "No hay ninguna sesión de caja abierta"));
+                        "No tienes ninguna sesión de caja abierta"));
 
         // Saldo esperado = inicial + ventas + abonos - gastos - egresos
         BigDecimal saldoEsperado = sesion.getSaldoInicialCop()
@@ -94,16 +89,49 @@ public class CajaServicio {
         log.info("Sesión de caja cerrada: id={}, diferencia={}",
                 cerrada.getId(), diferencia);
 
+        // Se publica el evento aquí, pero el backup solo se ejecutará
+        // DESPUÉS de que esta transacción confirme por completo en la
+        // base de datos (ver BackupServicio.alCerrarCaja). Así se
+        // garantiza que el backup incluya este cierre, y nunca dispara
+        // si la transacción termina en rollback.
+        eventPublisher.publishEvent(new CajaCerradaEvento(cerrada.getId()));
+
         return aDTO(cerrada);
     }
 
-    // Obtiene la sesión actualmente abierta.
+    // Obtiene la sesión abierta del usuario actual.
     @Transactional(readOnly = true)
     public SesionCajaRespuestaDTO obtenerSesionActual() {
-        return sesionCajaRepositorio.buscarSesionAbierta()
+        Usuario cajera = obtenerUsuarioActual();
+        return sesionCajaRepositorio.buscarSesionAbiertaPorCajera(cajera.getId())
                 .map(this::aDTO)
                 .orElseThrow(() -> new ReglaNegocioExcepcion(
-                        "No hay ninguna sesión de caja abierta"));
+                        "No tienes ninguna sesión de caja abierta"));
+    }
+
+    // Lista todas las sesiones actualmente abiertas (vista del dueño).
+    @Transactional(readOnly = true)
+    public List<SesionCajaRespuestaDTO> listarSesionesAbiertas() {
+        return sesionCajaRepositorio.listarSesionesAbiertas().stream()
+                .map(this::aDTO)
+                .toList();
+    }
+
+    // Historial de cierres filtrado por cajera y/o rango de fechas.
+    @Transactional(readOnly = true)
+    public Page<SesionCajaRespuestaDTO> listarHistorialFiltrado(
+            Long cajeraId, LocalDate desde, LocalDate hasta, Pageable pageable) {
+
+        String desdeStr = desde != null
+                ? desde.atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString()
+                : null;
+        String hastaStr = hasta != null
+                ? hasta.plusDays(1).atStartOfDay().atOffset(ZoneOffset.of("-05:00")).toString()
+                : null;
+
+        return sesionCajaRepositorio
+                .listarHistorialFiltrado(cajeraId, desdeStr, hastaStr, pageable)
+                .map(this::aDTO);
     }
 
     // Historial de sesiones.
@@ -119,12 +147,14 @@ public class CajaServicio {
 
     // ── Movimientos de Caja ───────────────────────────────────
 
-    // Registra un gasto operativo.
+    // Registra un gasto operativo en la sesión abierta del usuario actual.
     @Transactional
     public void registrarGasto(GastoDTO solicitud) {
-        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbierta()
+        Usuario cajera = obtenerUsuarioActual();
+
+        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbiertaPorCajera(cajera.getId())
                 .orElseThrow(() -> new ReglaNegocioExcepcion(
-                        "No hay ninguna sesión de caja abierta"));
+                        "No tienes ninguna sesión de caja abierta"));
 
         registrarMovimiento(sesion, TipoMovimientoCaja.GASTO,
                 solicitud.montoCop(), solicitud.descripcion(), null);
@@ -137,12 +167,14 @@ public class CajaServicio {
                 solicitud.montoCop(), solicitud.descripcion());
     }
 
-    // Registra un egreso autorizado por el dueño.
+    // Registra un egreso autorizado por el dueño, sobre su propia sesión abierta.
     @Transactional
     public void registrarEgresoDueno(GastoDTO solicitud) {
-        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbierta()
+        Usuario dueno = obtenerUsuarioActual();
+
+        SesionCaja sesion = sesionCajaRepositorio.buscarSesionAbiertaPorCajera(dueno.getId())
                 .orElseThrow(() -> new ReglaNegocioExcepcion(
-                        "No hay ninguna sesión de caja abierta"));
+                        "No tienes ninguna sesión de caja abierta"));
 
         registrarMovimiento(sesion, TipoMovimientoCaja.EGRESO_DUENO,
                 solicitud.montoCop(),
@@ -153,11 +185,12 @@ public class CajaServicio {
         sesionCajaRepositorio.save(sesion);
     }
 
-    // Registra automáticamente el ingreso de una venta en caja.
+    // Registra automáticamente el ingreso de una venta en la sesión
+    // abierta del cajero que la realizó.
     @Transactional
-    public void registrarIngresoPorVenta(BigDecimal monto, Long ventaId,
+    public void registrarIngresoPorVenta(Long cajeraId, BigDecimal monto, Long ventaId,
                                          BigDecimal montoEfectivo, BigDecimal montoTransferencia, BigDecimal montoCredito) {
-        sesionCajaRepositorio.buscarSesionAbierta().ifPresent(sesion -> {
+        sesionCajaRepositorio.buscarSesionAbiertaPorCajera(cajeraId).ifPresent(sesion -> {
             registrarMovimiento(sesion, TipoMovimientoCaja.VENTA,
                     monto, "Venta POS #" + ventaId, ventaId);
             sesion.setTotalVentasCop(sesion.getTotalVentasCop().add(monto));
@@ -214,6 +247,8 @@ public class CajaServicio {
                         .map(m -> new SesionCajaRespuestaDTO.MovimientoRespuestaDTO(
                                 m.getId(), m.getTipo(),
                                 m.getMontoCop(), m.getDescripcion(),
+                                m.getRegistradoPor() != null ? m.getRegistradoPor().getNombreCompleto() : null,
+                                m.getVentaId(),
                                 m.getCreadoEn()))
                         .toList();
 

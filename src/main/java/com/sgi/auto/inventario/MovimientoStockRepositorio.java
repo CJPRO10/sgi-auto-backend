@@ -21,4 +21,9 @@ public interface MovimientoStockRepositorio extends JpaRepository<MovimientoStoc
             @Param("productoId") Long productoId,
             @Param("desde") OffsetDateTime desde,
             @Param("hasta") OffsetDateTime hasta);
+
+    // Última fecha de movimiento por producto (para reporte de productos sin movimiento)
+    // Cada fila: [0] = productoId (Long), [1] = fecha del último movimiento (OffsetDateTime)
+    @Query("SELECT m.producto.id, MAX(m.creadoEn) FROM MovimientoStock m GROUP BY m.producto.id")
+    List<Object[]> ultimoMovimientoPorProducto();
 }

@@ -19,7 +19,7 @@ public class Cliente extends EntidadBase {
     @Column(name = "nombre_completo", nullable = false, length = 200)
     private String nombreCompleto;
 
-    @Column(name = "tipo_identificacion", nullable = false, length = 2)
+    @Column(name = "tipo_identificacion", nullable = false, length = 20)
     @Builder.Default
     private String tipoIdentificacion = "CC";
 

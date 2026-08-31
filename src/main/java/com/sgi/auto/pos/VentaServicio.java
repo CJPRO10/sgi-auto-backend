@@ -1,6 +1,6 @@
 package com.sgi.auto.pos;
 
-import com.sgi.auto.caja.CajaServicio;
+import com.sgi.auto.caja.*;
 import com.sgi.auto.clientes.Cliente;
 import com.sgi.auto.clientes.ClienteRepositorio;
 import com.sgi.auto.clientes.CreditoRepositorio;
@@ -16,13 +16,15 @@ import com.sgi.auto.inventario.TipoMovimientoStock;
 import com.sgi.auto.pos.dto.AnulacionDTO;
 import com.sgi.auto.pos.dto.VentaCrearDTO;
 import com.sgi.auto.pos.dto.VentaRespuestaDTO;
+import com.sgi.auto.usuarios.Usuario;
+import com.sgi.auto.usuarios.UsuarioRepositorio;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -44,6 +46,10 @@ public class VentaServicio {
     private final ClienteRepositorio clienteRepositorio;
     private final CajaServicio cajaServicio;
     private final CreditoRepositorio creditoRepositorio;
+    private final SesionCajaRepositorio sesionCajaRepositorio;
+    private final UsuarioRepositorio usuarioRepositorio;
+    private final MovimientoCajaRepositorio movimientoCajaRepositorio;
+
 
     // Regla de negocio: cada COP gastado = 1 punto
     private static final BigDecimal FACTOR_PUNTOS = BigDecimal.ONE;
@@ -51,7 +57,6 @@ public class VentaServicio {
     @Transactional
     public VentaRespuestaDTO crear(VentaCrearDTO solicitud) {
 
-        // Idempotencia
         var ventaExistente = ventaRepositorio
                 .findByClaveIdempotencia(solicitud.claveIdempotencia());
         if (ventaExistente.isPresent()) {
@@ -146,7 +151,6 @@ public class VentaServicio {
         if (total.compareTo(BigDecimal.ZERO) < 0) total = BigDecimal.ZERO;
         venta.setTotalCop(total);
 
-        // Desglose de montos por método de pago
         BigDecimal montoEfectivo = solicitud.montoEfectivoCop() != null
                 ? solicitud.montoEfectivoCop() : BigDecimal.ZERO;
         BigDecimal montoTransferencia = solicitud.montoTransferenciaCop() != null
@@ -183,8 +187,14 @@ public class VentaServicio {
                 guardada.getId(), guardada.getTotalCop(), items.size());
 
         final BigDecimal totalFinal = total;
-        cajaServicio.registrarIngresoPorVenta(
-                totalFinal, guardada.getId(),
+
+        String nombreUsuarioActual = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuarioActual = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuarioActual)
+                .orElse(null);
+        Long cajeraId = usuarioActual != null ? usuarioActual.getId() : null;
+
+        cajaServicio.registrarIngresoPorVenta(cajeraId, totalFinal, guardada.getId(),
                 montoEfectivo, montoTransferencia, montoCredito);
 
         if (solicitud.metodoPago() == MetodoPago.CREDITO && venta.getCliente() != null) {
@@ -194,6 +204,11 @@ public class VentaServicio {
                                 credito.setMontoTotalCop(
                                         credito.getMontoTotalCop().add(totalFinal));
                                 creditoRepositorio.save(credito);
+                                // Actualizar saldo en cliente
+                                venta.getCliente().setCupoCreditoCop(credito.getMontoTotalCop());
+                                venta.getCliente().setSaldoCreditoCop(
+                                        credito.getMontoTotalCop().subtract(credito.getMontoPagadoCop()));
+                                clienteRepositorio.save(venta.getCliente());
                             },
                             () -> {
                                 Credito nuevoCredito = Credito.builder()
@@ -203,11 +218,13 @@ public class VentaServicio {
                                         .build();
                                 venta.getCliente().setCreditoHabilitado(true);
                                 venta.getCliente().setCupoCreditoCop(totalFinal);
+                                venta.getCliente().setSaldoCreditoCop(totalFinal);
                                 clienteRepositorio.save(venta.getCliente());
                                 creditoRepositorio.save(nuevoCredito);
                             }
                     );
         }
+
         return aDTO(guardada);
     }
 
@@ -246,6 +263,45 @@ public class VentaServicio {
             cliente.setSaldoPuntos(
                     Math.max(0, cliente.getSaldoPuntos() - venta.getPuntosGanados()));
             clienteRepositorio.save(cliente);
+        }
+
+        // Registrar egreso en caja por devolución
+        String nombreUsuario = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuario = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                .orElse(null);
+
+        if (usuario != null) {
+            sesionCajaRepositorio.buscarSesionAbiertaPorCajera(usuario.getId())
+                    .ifPresent(sesion -> {
+                        // Descontar del total de ventas
+                        sesion.setTotalVentasCop(
+                                sesion.getTotalVentasCop().subtract(venta.getTotalCop())
+                                        .max(BigDecimal.ZERO));
+
+                        // Descontar del desglose por método
+                        sesion.setTotalEfectivoCop(
+                                sesion.getTotalEfectivoCop().subtract(venta.getMontoPagadoCop())
+                                        .max(BigDecimal.ZERO));
+                        sesion.setTotalTransferenciaCop(
+                                sesion.getTotalTransferenciaCop().subtract(venta.getMontoTransferenciaCop())
+                                        .max(BigDecimal.ZERO));
+                        sesion.setTotalCreditoCop(
+                                sesion.getTotalCreditoCop().subtract(venta.getMontoCreditoCop())
+                                        .max(BigDecimal.ZERO));
+
+                        // Registrar movimiento de egreso
+                        movimientoCajaRepositorio.save(MovimientoCaja.builder()
+                                .sesion(sesion)
+                                .tipo(TipoMovimientoCaja.EGRESO_DUENO)
+                                .montoCop(venta.getTotalCop())
+                                .descripcion("Anulación venta #" + ventaId + " - " + solicitud.razon())
+                                .ventaId(ventaId)
+                                .registradoPor(usuario)
+                                .build());
+
+                        sesionCajaRepositorio.save(sesion);
+                    });
         }
 
         venta.setEstado(EstadoVenta.ANULADA);
@@ -310,6 +366,7 @@ public class VentaServicio {
                 venta.getTotalCop(),
                 venta.getMontoPagadoCop(),
                 venta.getVueltoCop(),
+                venta.getRazonAnulacion(),
                 venta.getPuntosGanados(),
                 itemsDTO,
                 venta.getCreadoEn());

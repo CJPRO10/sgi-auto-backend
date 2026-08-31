@@ -12,6 +12,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.sgi.auto.caja.MovimientoCaja;
+import com.sgi.auto.caja.MovimientoCajaRepositorio;
+import com.sgi.auto.caja.SesionCajaRepositorio;
+import com.sgi.auto.caja.TipoMovimientoCaja;
+import com.sgi.auto.usuarios.Usuario;
+import com.sgi.auto.usuarios.UsuarioRepositorio;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -28,6 +35,8 @@ public class FidelizacionServicio {
     private final HistorialPuntosRepositorio historialPuntosRepositorio;
     private final UsuarioRepositorio usuarioRepositorio;
     private final PagoCreditoRepositorio pagoCreditoRepositorio;
+    private final SesionCajaRepositorio sesionCajaRepositorio;
+    private final MovimientoCajaRepositorio movimientoCajaRepositorio;
 
     // ── Puntos ────────────────────────────────────────────────
 
@@ -165,7 +174,10 @@ public class FidelizacionServicio {
 
         credito.setMontoPagadoCop(
                 credito.getMontoPagadoCop().add(solicitud.montoCop()));
-
+        credito.getCliente().setSaldoCreditoCop(
+                credito.getMontoTotalCop().subtract(credito.getMontoPagadoCop())
+        );
+        clienteRepositorio.save(credito.getCliente());
         if (credito.getMontoPagadoCop().compareTo(credito.getMontoTotalCop()) >= 0) {
             credito.setEstaActivo(false);
             credito.getCliente().setCreditoHabilitado(false);
@@ -176,15 +188,51 @@ public class FidelizacionServicio {
                 .credito(credito)
                 .montoCop(solicitud.montoCop())
                 .notas(solicitud.notas())
+                .metodoPago(solicitud.metodoPago())
                 .build();
 
-        credito.getPagos().add(pago);
+        pagoCreditoRepositorio.save(pago);
         Credito actualizado = creditoRepositorio.save(credito);
 
-        log.info("Pago de crédito: clienteId={}, monto={}", clienteId, solicitud.montoCop());
+        // Registrar en caja
+        String nombreUsuario = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuario = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                .orElse(null);
+
+        if (usuario != null) {
+            sesionCajaRepositorio.buscarSesionAbiertaPorCajera(usuario.getId())
+                    .ifPresent(sesion -> {
+                        movimientoCajaRepositorio.save(MovimientoCaja.builder()
+                                .sesion(sesion)
+                                .tipo(TipoMovimientoCaja.ABONO_CREDITO)
+                                .montoCop(solicitud.montoCop())
+                                .descripcion("Abono crédito - " +
+                                        credito.getCliente().getNombreCompleto() +
+                                        " - " + solicitud.metodoPago())
+                                .registradoPor(usuario)
+                                .build());
+
+                        sesion.setTotalAbonosCreditoCop(
+                                sesion.getTotalAbonosCreditoCop().add(solicitud.montoCop()));
+
+                        // Desglose por método
+                        if ("EFECTIVO".equals(solicitud.metodoPago())) {
+                            sesion.setTotalEfectivoCop(
+                                    sesion.getTotalEfectivoCop().add(solicitud.montoCop()));
+                        } else if ("TRANSFERENCIA".equals(solicitud.metodoPago())) {
+                            sesion.setTotalTransferenciaCop(
+                                    sesion.getTotalTransferenciaCop().add(solicitud.montoCop()));
+                        }
+
+                        sesionCajaRepositorio.save(sesion);
+                    });
+        }
+
+        log.info("Pago de crédito: clienteId={}, monto={}, metodo={}",
+                clienteId, solicitud.montoCop(), solicitud.metodoPago());
         return aCreditoDTO(actualizado);
     }
-
     @Transactional(readOnly = true)
     public CreditoRespuestaDTO obtenerCreditoActivo(Long clienteId) {
         return creditoRepositorio.buscarActivoPorCliente(clienteId)
@@ -211,19 +259,46 @@ public class FidelizacionServicio {
 
         credito.setMontoTotalCop(credito.getMontoTotalCop().add(solicitud.montoTotalCop()));
         Credito actualizado = creditoRepositorio.save(credito);
-
+        cliente.setCupoCreditoCop(actualizado.getMontoTotalCop());
+        cliente.setSaldoCreditoCop(
+                actualizado.getMontoTotalCop().subtract(actualizado.getMontoPagadoCop())
+        );
+        clienteRepositorio.save(cliente);
         PagoCredito movimiento = PagoCredito.builder()
                 .credito(actualizado)
                 .montoCop(solicitud.montoTotalCop().negate())
-                .notas("DEUDA: " + (solicitud.notas() != null
-                        ? solicitud.notas() : "Deuda manual"))
+                .notas("DEUDA: " + (solicitud.notas() != null ? solicitud.notas() : "Deuda manual"))
                 .build();
         pagoCreditoRepositorio.save(movimiento);
 
-        log.info("Deuda agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
+        // Registrar egreso en caja
+        String nombreUsuario = SecurityContextHolder.getContext()
+                .getAuthentication().getName();
+        Usuario usuario = usuarioRepositorio.buscarPorNombreUsuario(nombreUsuario)
+                .orElse(null);
+
+        if (usuario != null) {
+            sesionCajaRepositorio.buscarSesionAbiertaPorCajera(usuario.getId())
+                    .ifPresent(sesion -> {
+                        movimientoCajaRepositorio.save(MovimientoCaja.builder()
+                                .sesion(sesion)
+                                .tipo(TipoMovimientoCaja.EGRESO_DUENO)
+                                .montoCop(solicitud.montoTotalCop())
+                                .descripcion("Préstamo a cliente: " +
+                                        cliente.getNombreCompleto() +
+                                        (solicitud.notas() != null ? " - " + solicitud.notas() : ""))
+                                .registradoPor(usuario)
+                                .build());
+
+                        sesion.setTotalGastosCop(
+                                sesion.getTotalGastosCop().add(solicitud.montoTotalCop()));
+                        sesionCajaRepositorio.save(sesion);
+                    });
+        }
+
+        log.info("Deuda manual agregada: clienteId={}, monto={}", clienteId, solicitud.montoTotalCop());
         return aCreditoDTO(creditoRepositorio.findById(actualizado.getId()).orElse(actualizado));
     }
-
     // ── Helpers privados ──────────────────────────────────────
 
     private Cliente buscarClienteOLanzar(Long id) {

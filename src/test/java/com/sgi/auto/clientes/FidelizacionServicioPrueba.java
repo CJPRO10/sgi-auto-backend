@@ -1,5 +1,8 @@
 package com.sgi.auto.clientes;
 
+import com.sgi.auto.caja.MovimientoCaja;
+import com.sgi.auto.caja.MovimientoCajaRepositorio;
+import com.sgi.auto.caja.SesionCajaRepositorio;
 import com.sgi.auto.clientes.dto.*;
 import com.sgi.auto.compartido.ConflictoExcepcion;
 import com.sgi.auto.compartido.ReglaNegocioExcepcion;
@@ -21,7 +24,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -32,6 +35,9 @@ class FidelizacionServicioPrueba {
     @Mock CreditoRepositorio creditoRepositorio;
     @Mock HistorialPuntosRepositorio historialPuntosRepositorio;
     @Mock UsuarioRepositorio usuarioRepositorio;
+    @Mock PagoCreditoRepositorio pagoCreditoRepositorio;
+    @Mock SesionCajaRepositorio sesionCajaRepositorio;
+    @Mock MovimientoCajaRepositorio movimientoCajaRepositorio;
 
     @InjectMocks FidelizacionServicio fidelizacionServicio;
 
@@ -128,9 +134,12 @@ class FidelizacionServicioPrueba {
         when(creditoRepositorio.buscarActivoPorCliente(1L))
                 .thenReturn(Optional.of(creditoPrueba));
         when(creditoRepositorio.save(any())).thenReturn(creditoPrueba);
+        when(pagoCreditoRepositorio.save(any())).thenReturn(new PagoCredito());
+        when(usuarioRepositorio.buscarPorNombreUsuario("admin")).thenReturn(Optional.empty());
+        when(sesionCajaRepositorio.buscarSesionAbiertaPorCajera(any())).thenReturn(Optional.empty());
 
         fidelizacionServicio.registrarPago(1L,
-                new PagoCreditoDTO(new BigDecimal("100000"), "Abono mensual"));
+                new PagoCreditoDTO(new BigDecimal("100000"), "Abono mensual", "EFECTIVO"));
 
         assertThat(creditoPrueba.getMontoPagadoCop())
                 .isEqualByComparingTo("300000");
@@ -144,7 +153,7 @@ class FidelizacionServicioPrueba {
 
         assertThatThrownBy(() ->
                 fidelizacionServicio.registrarPago(1L,
-                        new PagoCreditoDTO(new BigDecimal("500000"), "Pago excesivo")))
+                        new PagoCreditoDTO(new BigDecimal("500000"), "Pago excesivo", "EFECTIVO")))
                 .isInstanceOf(ReglaNegocioExcepcion.class)
                 .hasMessageContaining("supera el monto restante");
     }
