@@ -21,8 +21,5 @@ public class AuthContolador {
         TokenRespuestaDTO respuesta = authServicio.ingresar(solicitud);
         return ResponseEntity.ok(ApiRespuesta.exitoso(respuesta, "Ingreso exitoso"));
     }
-    @GetMapping("/../../salud")  // /api/salud — público
-    public ResponseEntity<ApiRespuesta<String>> salud() {
-        return ResponseEntity.ok(ApiRespuesta.exitoso("SGI-AUTO operativo"));
-    }
+
 }
